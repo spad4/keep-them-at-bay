@@ -10,12 +10,12 @@ ZOMBIE_H_ADJUST = 6
 WEAPONS = {
   {
     id = 0,
-    fire_rate = 20,
-    damage = 4,
+    fire_rate = 7,
+    damage = 20,
     bullets = 1,
     ammo = 10,
-    recoil = 0.5,
-    spread = 15,
+    recoil = 2,
+    spread = 1,
     reload = 2
   }
 }
@@ -129,8 +129,8 @@ end
 local function spawn_zombie()
   local new_zombie = {}
   new_zombie.x = math.random(10, usagi.GAME_W - 10)
-  new_zombie.y = math.random(-40, -20)
-  -- new_zombie.y = 30
+  -- new_zombie.y = math.random(-40, -20)
+  new_zombie.y = 30
   new_zombie.last_move = usagi.elapsed;
   new_zombie.move_delay = 0.5 + math.random() * 0.25
   new_zombie.moved = false
@@ -201,6 +201,8 @@ local function shoot()
       if math.abs(kb_y) > math.abs(zombie.kb_y) then
         zombie.kb_y = kb_y
       end
+
+      dandelion.zombie_spray(start_x + math.cos(MouseAngle + spread) * distance, start_y + math.sin(MouseAngle + spread) * distance, {spray_x = vec.x, spray_y = vec.y})
       
       dandelion.hitscan_bullet(start_x, start_y,
       { ["config"] = { length = distance, rotation = MouseAngle + spread } })
@@ -240,6 +242,7 @@ function _update(dt)
 
     if zombie.health <= 0 then
       -- zombie died
+      dandelion.zombie_die(zombie.x + ZOMBIE_W_ADJUST + 4, zombie.y + ZOMBIE_H_ADJUST)
       table.remove(Zombies, i)
     else
       local elapsed = usagi.elapsed
@@ -346,15 +349,15 @@ local function draw_player()
     Player.flip, GunAngle, gfx.COLOR_TRUE_WHITE, 1)
 end
 
-local function draw_cursor()
+local function draw_crosshair()
   local mx, my = input.mouse()
 
   local adjusted_spread = (MouseDistance / 150) * Weapon.spread / 2
 
-  gfx.line(mx + adjusted_spread + 1, my, mx + adjusted_spread + 3, my, gfx.COLOR_WHITE)
-  gfx.line(mx - (adjusted_spread + 2), my, mx - (adjusted_spread + 4), my, gfx.COLOR_WHITE)
-  gfx.line(mx, my + (adjusted_spread + 2), mx, my + (adjusted_spread + 4), gfx.COLOR_WHITE)
-  gfx.line(mx, my - (adjusted_spread + 1), mx, my - (adjusted_spread + 3), gfx.COLOR_WHITE)
+  gfx.line(mx + adjusted_spread + 1, my, mx + adjusted_spread + 3, my, gfx.COLOR_TRUE_WHITE)
+  gfx.line(mx - (adjusted_spread + 2), my, mx - (adjusted_spread + 4), my, gfx.COLOR_TRUE_WHITE)
+  gfx.line(mx, my + (adjusted_spread + 2), mx, my + (adjusted_spread + 4), gfx.COLOR_TRUE_WHITE)
+  gfx.line(mx, my - (adjusted_spread + 1), mx, my - (adjusted_spread + 3), gfx.COLOR_TRUE_WHITE)
 end
 
 local function draw_ammo()
@@ -389,5 +392,5 @@ function _draw(dt)
   dandelion.Draw()
   draw_player()
   draw_ammo()
-  draw_cursor()
+  draw_crosshair()
 end

@@ -153,14 +153,14 @@ for _, emitter in pairs(load_emitters) do
 
         new_emitter.duration = compute_emitter_expression(new_emitter, new_emitter.duration or 1)
 
-        -- if vars then
-        --     for k, v in pairs(vars) do
-        --         -- these properties are immutable
-        --         if k ~= "name" and k ~= "x" and k ~= "y" and k ~= "born" then
-        --             new_emitter[k] = v
-        --         end
-        --     end
-        -- end
+        if vars then
+            for k, v in pairs(vars) do
+                -- these properties are immutable
+                if k ~= "name" and k ~= "x" and k ~= "y" and k ~= "born" then
+                    new_emitter[k] = v
+                end
+            end
+        end
         table.insert(emitter_cache, new_emitter)
     end
     ::continue::
