@@ -22,39 +22,24 @@
         ]
     },
     {
-        "name": "zombie_die",
+        "name": "hit_wall",
         "duration": 0,
         "particles": [
             {
-                "name": "flesh_spray",
-                "count": 3,
-                "shape": "line",
+                "name": "wall_chunk",
+                "count": 4,
+                "shape": "rectangle",
                 "config": {
-                    "length": 12,
-                    "thickness": 6,
-                    "centered": true,
-                    "rotation": 0.5,
-                    "motion": 12
-                },
-                "overrides": {
-                    "duration": "self.random_3 * 0.5 + 0.5"
+                    "width": 16,
+                    "height": 16
                 }
-            },
-            {
-                "name": "blood_spray",
-                "count": 3,
-                "shape": "line",
-                "config": {
-                    "length": 12,
-                    "thickness": 6,
-                    "centered": true,
-                    "rotation": 0.5,
-                    "motion": 12
-                },
-                "overrides": {
-                    "duration": "self.random_1 * 0.5 + 0.5"
-                }
-            },
+            }
+        ]
+    },
+    {
+        "name": "zombie_die",
+        "duration": 0,
+        "particles": [
             {
                 "name": "blood_chunk_triangle",
                 "count": 3,
@@ -101,6 +86,64 @@
                     "centered": true,
                     "rotation": 0.5,
                     "motion": 12
+                }
+            }
+        ]
+    },
+    {
+        "name": "player_hit",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "blood_chunk_circle",
+                "count": 3,
+                "shape": "line",
+                "config": {
+                    "length": 8,
+                    "thickness": 3,
+                    "centered": true,
+                    "rotation": 0.5,
+                    "motion": 12
+                }
+            }
+        ]
+    },
+    {
+        "name": "health_bar_hit",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "blood_chunk_triangle",
+                "count": 16,
+                "shape": "line",
+                "config": {
+                    "length": "self.length or 12",
+                    "thickness": 8,
+                    "motion": 6
+                }
+            }
+        ]
+    },
+    {
+        "name": "player_die",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "blood_chunk_circle_slow",
+                "count": 8,
+                "shape": "circle",
+                "config": {
+                    "radius": 8,
+                    "motion": 6
+                }
+            },
+            {
+                "name": "blood_chunk_triangle_slow",
+                "count": 8,
+                "shape": "circle",
+                "config": {
+                    "radius": 8,
+                    "motion": 6
                 }
             }
         ]
