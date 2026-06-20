@@ -554,7 +554,16 @@ end
 
 function dandelion.ClearAll()
     particle_cache = {}
+    alive_particles = 0
     emitter_cache = {}
+end
+
+function dandelion.ClearEmitters()
+    emitter_cache = {}
+end
+
+function dandelion.ClearParticles()
+    particle_cache = {}
     alive_particles = 0
 end
 

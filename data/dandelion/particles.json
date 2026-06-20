@@ -26,6 +26,32 @@
       }
     },
     {
+        "name": "money_up",
+        "duration": 0.75,
+        "color": "gfx.COLOR_GREEN",
+        "type": "text",
+        "dx": "-12 - (self.length or 0)",
+        "dy": "-3 * math.log(self.age * 20 + 1, 2)",
+        "config": {
+            "text": "'+$' .. self.amount or '0'",
+            "shadow": "gfx.COLOR_DARK_GREEN",
+            "alpha": "1 - self.age / self.duration"
+        }
+    },
+    {
+        "name": "money_down",
+        "duration": 0.75,
+        "color": "gfx.COLOR_RED",
+        "type": "text",
+        "dx": "-12 - (self.length or 0)",
+        "dy": "-3 * math.log(self.age * 20 + 1, 2)",
+        "config": {
+            "text": "'-$' .. self.amount or '0'",
+            "shadow": "gfx.COLOR_DARK_PURPLE",
+            "alpha": "1 - self.age / self.duration"
+        }
+    },
+    {
         "name": "hitscan_bullet",
         "duration": 0.05,
         "type": "line",

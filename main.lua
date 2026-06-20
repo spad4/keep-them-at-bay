@@ -1,7 +1,9 @@
 local dandelion = require("dandelion")
+local waves = require("waves")
+local zombies = require("zombies")
 
 H_SIZE = 16
-PLAYER_SPEED = 30
+PLAYER_SPEED = 40
 ZOMBIE_SPEED = 2
 ZOMBIE_W_ADJUST = 5
 ZOMBIE_H_ADJUST = 6
@@ -28,6 +30,17 @@ WEAPONS = {
         recoil = 0.5,
         spread = 15,
         reload = 2,
+        bullet = BULLETS["rifle"]
+    },
+    ["burst"] = {
+        id = 0,
+        fire_rate = 5,
+        damage = 7,
+        count = 1,
+        ammo = 5,
+        recoil = 0.5,
+        spread = 15,
+        reload = 0.5,
         bullet = BULLETS["rifle"]
     }
 }
@@ -56,44 +69,54 @@ function _init()
         last_hit = 0,
         kb = 0
     }
-    PlayerSkin = math.random(0, 3)
-    MouseAngle = 0
-    MouseDistance = 0
-    FireCooldown = 0
+    Player_Skin = math.random(0, 3)
+    Mouse_Angle = 0
+    Mouse_Distance = 0
+    Fire_Cooldown = 0
     Weapon = WEAPONS["rifle"]
     Ammo = Weapon.ammo
     Reloading = false
-    ReloadStart = 0
+    Reload_Start = 0
     Walls = {}
-    GameOver = nil
-    GameOverPhase = 0
-    ZombiesKilled = 0
-    MoneyMade = 0
-    DaysSurvived = 0
+    Day = 1
+    Money = 0
+    Weather = "Clear"
+    Is_Night = false
+    Weather = "Clear"
+    Game_Over = nil
+    Game_Over_Phase = 0
+    Zombies_Killed = 0
+    Money_Made = 0
+    Current_Wave = {}
+    Night_Started = 0
     for i = 1, 20 do
         Walls[i] = 100
     end
     dandelion.ClearAll()
     input.set_mouse_visible(false)
+    gfx.shader_set(nil)
 end
 
-local function spawn_zombie()
+local function spawn_zombie(type, min, max)
+    local model = zombies[type]
+
     local new_zombie = {}
-    new_zombie.x = math.random(10, usagi.GAME_W - 10)
-    new_zombie.y = math.random(-40, -20)
+    new_zombie.x = math.random(min, max)
+    new_zombie.y = math.random(-30, -10) - model.h
     -- new_zombie.y = 100
     new_zombie.last_move = usagi.elapsed;
-    new_zombie.move_delay = 0.5 + math.random() * 0.25
     new_zombie.moved = false
-    new_zombie.health = 20
     new_zombie.current_frame = 1
     new_zombie.flip = math.random() > 0.5 and true or false
-    new_zombie.w = 5
-    new_zombie.h = 10
     new_zombie.kb_x = 0
     new_zombie.kb_y = 0
-    new_zombie.damage = 5
     new_zombie.on_wall = false
+    new_zombie.w = model.w
+    new_zombie.h = model.h
+    new_zombie.health = model.health
+    new_zombie.move_delay = model.move_delay * (math.random() * 0.25 + 0.75)
+    new_zombie.money = model.money
+    new_zombie.damage = model.damage
     table.insert(Zombies, new_zombie)
 end
 
@@ -202,7 +225,7 @@ local function hit_zombie(x1, y1, x2, y2)
 end
 
 local function shoot()
-    local vec = util.vec_from_angle(MouseAngle, 7)
+    local vec = util.vec_from_angle(Mouse_Angle, 7)
     local adjusted_spread = Weapon.spread * 0.01
     local adjusted_x, adjusted_y = Player.x + 8, Player.y + 10
 
@@ -213,7 +236,7 @@ local function shoot()
 
         -- calculates the hitbox of the bullet
         local start_x, start_y = adjusted_x + vec.x, adjusted_y + vec.y
-        local spread_vec = util.vec_from_angle(MouseAngle + spread, 500)
+        local spread_vec = util.vec_from_angle(Mouse_Angle + spread, 500)
         local end_x, end_y = start_x + spread_vec.x, start_y + spread_vec.y
 
         local zombie, distance = hit_zombie(start_x, start_y, end_x, end_y)
@@ -231,20 +254,20 @@ local function shoot()
                 zombie.kb_y = kb_y
             end
 
-            dandelion.zombie_spray(start_x + math.cos(MouseAngle + spread) * distance,
-                start_y + math.sin(MouseAngle + spread) * distance, { spray_x = vec.x, spray_y = vec.y })
+            dandelion.zombie_spray(start_x + math.cos(Mouse_Angle + spread) * distance,
+                start_y + math.sin(Mouse_Angle + spread) * distance, { spray_x = vec.x, spray_y = vec.y })
 
             dandelion.hitscan_bullet(start_x, start_y,
-                { ["config"] = { length = distance, rotation = MouseAngle + spread } })
+                { ["config"] = { length = distance, rotation = Mouse_Angle + spread } })
         else
             dandelion.hitscan_bullet(start_x, start_y,
-                { ["config"] = { length = 1000, rotation = MouseAngle + spread } })
+                { ["config"] = { length = 1000, rotation = Mouse_Angle + spread } })
         end
     end
 
     dandelion[Weapon.bullet.particle](adjusted_x, adjusted_y, { flip = Player.flip and 1 or -1 })
     effect.screen_shake(0.1, Weapon.recoil)
-    FireCooldown = Weapon.fire_rate
+    Fire_Cooldown = Weapon.fire_rate
 end
 
 local function blocked_by_wall(x, y, w, h)
@@ -279,34 +302,34 @@ local function blocked_by_wall(x, y, w, h)
 end
 
 local function game_over_sequence()
-    local over_for = usagi.elapsed - GameOver
+    local over_for = usagi.elapsed - Game_Over
 
-    if over_for > 2 and GameOverPhase == 0 then
+    if over_for > 2 and Game_Over_Phase == 0 then
         effect.screen_shake(0.5, 1)
         dandelion.game_over(32, 32)
-        GameOverPhase = 1
+        Game_Over_Phase = 1
     end
 
-    if over_for > 3 and GameOverPhase == 1 then
+    if over_for > 3 and Game_Over_Phase == 1 then
         effect.screen_shake(0.5, 0.5)
-        dandelion.stats_text(32, 64, { print = "Zombies Killed: " .. ZombiesKilled })
-        GameOverPhase = 2
+        dandelion.stats_text(32, 64, { print = "Zombies Killed: " .. Zombies_Killed })
+        Game_Over_Phase = 2
     end
-    if over_for > 3.5 and GameOverPhase == 2 then
+    if over_for > 3.5 and Game_Over_Phase == 2 then
         effect.screen_shake(0.5, 0.5)
-        dandelion.stats_text(32, 76, { print = "Money Made: " .. MoneyMade })
-        GameOverPhase = 3
+        dandelion.stats_text(32, 76, { print = "Money Made: " .. Money_Made })
+        Game_Over_Phase = 3
     end
-    if over_for > 4 and GameOverPhase == 3 then
+    if over_for > 4 and Game_Over_Phase == 3 then
         effect.screen_shake(0.5, 0.5)
-        dandelion.stats_text(32, 88, { print = "Days Survived: " .. DaysSurvived })
-        GameOverPhase = 4
+        dandelion.stats_text(32, 88, { print = "Days Survived: " .. Day })
+        Game_Over_Phase = 4
     end
 
-    if over_for > 5 and GameOverPhase == 4 then
+    if over_for > 5 and Game_Over_Phase == 4 then
         effect.screen_shake(0.5, 0.75)
         dandelion.stats_text(32, 112, { print = "Press CTRL + R to restart." })
-        GameOverPhase = 5
+        Game_Over_Phase = 5
     end
 end
 
@@ -314,7 +337,7 @@ local function check_player_dead()
     if Player.health <= 0 then
         dandelion.player_die(Player.x + 8, Player.y + 6)
         effect.screen_shake(2, 1)
-        GameOver = usagi.elapsed
+        Game_Over = usagi.elapsed
     end
 end
 
@@ -330,6 +353,20 @@ local function damage_player(damage)
     check_player_dead()
 end
 
+local function change_money(amount)
+    if amount == 0 then
+        return
+    end
+    local length = math.floor(math.log(math.abs(amount), 10)) * 6
+    if amount > 0 then
+        Money_Made += amount
+        dandelion.money_up(310, 154, {amount = amount, length = length})
+    else
+        dandelion.money_down(310, 154, {amount = math.abs(amount), length = length})
+    end
+    Money += amount
+end
+
 local function do_zombies()
     for i = #Zombies, 1, -1 do
         local zombie = Zombies[i]
@@ -337,7 +374,8 @@ local function do_zombies()
         if zombie.health <= 0 then
             -- zombie died
             dandelion.zombie_die(zombie.x + ZOMBIE_W_ADJUST + 4, zombie.y + ZOMBIE_H_ADJUST)
-            ZombiesKilled += 1
+            Zombies_Killed += 1
+            change_money(zombie.money)
             table.remove(Zombies, i)
         else
             local elapsed = usagi.elapsed
@@ -345,7 +383,7 @@ local function do_zombies()
             if zombie.kb_x ~= 0 then -- weapon stun
                 local direction = zombie.kb_x > 0 and 1 or -1
                 zombie.kb_x = util.approach(zombie.kb_x, 0, 1)
-                zombie.x = util.clamp(zombie.x + direction, 0, usagi.GAME_W - ZOMBIE_W_ADJUST * 2)
+                zombie.x = util.clamp(zombie.x + direction, -6, usagi.GAME_W - ZOMBIE_W_ADJUST * 2)
                 zombie.last_move = elapsed - zombie.move_delay * 0.5
             end
             if zombie.kb_y ~= 0 then -- weapon stun
@@ -405,19 +443,61 @@ local function do_zombies()
     end
 end
 
+local function start_next_night()
+    
+    -- night time overlay shit or whatever
+
+    Current_Wave = {}
+    if Day > #waves then return end
+    
+    local next_wave = waves[Day]
+
+    for i,v in pairs(next_wave) do
+        Current_Wave[i] = v
+    end
+
+    Is_Night = true
+    Night_Started = usagi.elapsed
+
+end
+
+local function do_waves()
+
+    if #Current_Wave == 0 and #Zombies == 0 then
+        Day += 1
+        Is_Night = false
+        return
+    end
+    
+    if #Current_Wave == 0 then return end
+
+    local next_spawn = Current_Wave[1]
+    if usagi.elapsed - Night_Started > next_spawn.time then
+
+        for i = 1, next_spawn.count do
+            spawn_zombie(next_spawn.type, next_spawn.spread.min, next_spawn.spread.max)
+        end
+        table.remove(Current_Wave, 1)
+    end
+end
+
 function _update(dt)
-    if GameOver then
+    if Game_Over then
         game_over_sequence()
         return
     end
 
-    if FireCooldown > 0 then
-        FireCooldown -= 1
+    if Fire_Cooldown > 0 then
+        Fire_Cooldown -= 1
     end
 
-    if Reloading and usagi.elapsed - ReloadStart > Weapon.reload then
+    if Reloading and usagi.elapsed - Reload_Start > Weapon.reload then
         Reloading = false
         Ammo = Weapon.ammo
+    end
+
+    if Is_Night then
+        do_waves()
     end
 
     do_zombies()
@@ -426,8 +506,8 @@ function _update(dt)
     local dx, dy = mx - Player.x - 8, my - Player.y - 11
     local h = util.vec_dist({ x = 0, y = 0 }, { x = dx, y = dy })
     local theta = math.asin(dy / h)
-    MouseAngle = dx > 0 and theta or (math.pi - theta)
-    MouseDistance = h
+    Mouse_Angle = dx > 0 and theta or (math.pi - theta)
+    Mouse_Distance = h
     GunAngle = dx > 0 and theta or (math.pi - theta)
     Player.flip = dx < 0 and true or false
 
@@ -439,11 +519,11 @@ function _update(dt)
     end
 
     if input.key_held(input.KEY_H) then
-        spawn_zombie()
+        -- spawn_zombie()
     end
 
     if input.key_pressed(input.KEY_C) then
-        damage_player(5)
+        change_money(-5)
     end
 
     local should_move = false
@@ -466,15 +546,19 @@ function _update(dt)
     Player.moving = should_move
 
     if input.mouse_held(input.MOUSE_LEFT) then
-        if FireCooldown == 0 then
+        if Fire_Cooldown == 0 then
             if Ammo > 0 then
                 shoot()
             end
             if Ammo < 1 and not Reloading then
                 Reloading = true
-                ReloadStart = usagi.elapsed
+                Reload_Start = usagi.elapsed
             end
         end
+    end
+
+    if input.key_pressed(input.KEY_SPACE) and Is_Night == false then
+        start_next_night()
     end
 end
 
@@ -504,11 +588,11 @@ end
 
 local function draw_player()
     -- adjust to accommodate player skin
-    local offset = PlayerSkin * H_SIZE
+    local offset = Player_Skin * H_SIZE
 
     -- used for arm recoil
-    local vec = util.vec_from_angle(MouseAngle, 1)
-    local m = Weapon.fire_rate - FireCooldown < math.min(4, Weapon.fire_rate) and -1 or 0
+    local vec = util.vec_from_angle(Mouse_Angle, 1)
+    local m = Weapon.fire_rate - Fire_Cooldown < math.min(4, Weapon.fire_rate) and -1 or 0
 
     -- player body
     --- body animations
@@ -530,7 +614,7 @@ local function draw_player()
 
     -- arms
     gfx.sspr_ex(320 + offset, 48, H_SIZE, H_SIZE, Player.x + m * vec.x, Player.y + m * vec.y, H_SIZE, H_SIZE, false,
-        Player.flip, MouseAngle, gfx.COLOR_TRUE_WHITE, 1)
+        Player.flip, Mouse_Angle, gfx.COLOR_TRUE_WHITE, 1)
 
     -- gun
     gfx.sspr_ex(320 + Weapon.id * 16, 192, H_SIZE, H_SIZE, Player.x + m * vec.x, Player.y + 2 + m * vec.y, H_SIZE, H_SIZE,
@@ -541,23 +625,26 @@ end
 local function draw_crosshair()
     local mx, my = input.mouse()
 
-    local adjusted_spread = (MouseDistance / 150) * Weapon.spread / 2
+    local adjusted_spread = (Mouse_Distance / 150) * Weapon.spread / 2
 
-    gfx.line(mx + adjusted_spread + 1, my, mx + adjusted_spread + 3, my, gfx.COLOR_TRUE_WHITE)
-    gfx.line(mx - (adjusted_spread + 2), my, mx - (adjusted_spread + 4), my, gfx.COLOR_TRUE_WHITE)
-    gfx.line(mx, my + (adjusted_spread + 2), mx, my + (adjusted_spread + 4), gfx.COLOR_TRUE_WHITE)
-    gfx.line(mx, my - (adjusted_spread + 1), mx, my - (adjusted_spread + 3), gfx.COLOR_TRUE_WHITE)
+    gfx.line(mx + adjusted_spread + 1, my, mx + 1.5 * adjusted_spread + 3, my, gfx.COLOR_TRUE_WHITE)
+    gfx.line(mx - (adjusted_spread + 2), my, mx - (1.5 * adjusted_spread + 4), my, gfx.COLOR_TRUE_WHITE)
+    gfx.line(mx, my + (adjusted_spread + 2), mx, my + (1.5 * adjusted_spread + 4), gfx.COLOR_TRUE_WHITE)
+    gfx.line(mx, my - (adjusted_spread + 1), mx, my - (1.5 * adjusted_spread + 3), gfx.COLOR_TRUE_WHITE)
+end
+
+local function text_with_shadow(text, x, y, color, shadow_color)
+    gfx.text(text, x + 1, y + 1, shadow_color)
+    gfx.text(text, x, y, color)
 end
 
 local function draw_hud()
-    -- local text = Ammo .. "/" .. Weapon.ammo
 
+    -- Ammo bar
     gfx.rect_fill(4, 157, Weapon.ammo * Weapon.bullet.spr_w + 3, 10, gfx.COLOR_BLACK)
     gfx.rect_fill(4, 156, Weapon.ammo * Weapon.bullet.spr_w + 3, 10, gfx.COLOR_DARK_GRAY)
     if Reloading then
-        -- local sdize = #text * 6
-        gfx.text("Reloading...", Weapon.ammo * Weapon.bullet.spr_w + 10, 155, gfx.COLOR_DARK_GRAY)
-        gfx.text("Reloading...", Weapon.ammo * Weapon.bullet.spr_w + 9, 154, gfx.COLOR_WHITE)
+        text_with_shadow("Reloading...", Weapon.ammo * Weapon.bullet.spr_w + 9, 154, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
     end
     for i = Ammo + 1, Weapon.ammo do
         gfx.sspr(Weapon.bullet.spr_x, Weapon.bullet.spr_y + Weapon.bullet.spr_h, Weapon.bullet.spr_w, Weapon.bullet
@@ -568,6 +655,7 @@ local function draw_hud()
             4 + i * Weapon.bullet.spr_w, 157)
     end
 
+    -- Health bar
     local hp_percent = Player.health / PLAYER_HEALTH
     local last_hp_percent = 64 * (Player.last_health - Player.health) / PLAYER_HEALTH
     -- local hp_color = usagi.elapsed - Player.last_hit > 0.125 and gfx.COLOR_RED or gfx.COLOR_WHITE
@@ -577,6 +665,18 @@ local function draw_hud()
         gfx.rect_fill(4 + hp_percent * 64, 168, last_hp_percent, 9,
             gfx.COLOR_WHITE)
     end
+
+    -- Money and days
+    local money = "$" .. Money
+    local money_size = #money * 6
+    text_with_shadow(money, 316 - money_size, 154, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
+    local day_night = Is_Night and "Night " or "Day "
+    local counter = day_night .. Day .. "/" .. #waves
+    local counter_size = #counter * 6
+    text_with_shadow(counter, 316 - counter_size, 165, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
+    -- local weather = "Forecast: " .. Weather
+    -- local weather_size = #weather * 6
+    -- text_with_shadow(weather, 316 - weather_size, 166, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
 end
 
 local function draw_rampart()
@@ -588,14 +688,13 @@ end
 
 local function draw_walls()
     for i = 1, #Walls do
-        local offset = Walls[i] > 0 and 0 or 1
+        local offset = util.round(6 - (Walls[i]+11) / 20)
+        if Walls[i] == 0 then
+            offset = 6
+        end
         gfx.sspr(offset * H_SIZE, 224, H_SIZE, H_SIZE, (i - 1) * H_SIZE, 148)
         gfx.sspr(offset * H_SIZE, 240, H_SIZE, H_SIZE, (i - 1) * H_SIZE, 164)
     end
-end
-
-local function draw_game_over()
-
 end
 
 function _draw(dt)
@@ -609,7 +708,7 @@ function _draw(dt)
 
     draw_rampart()
     draw_wall_zombies()
-    if not GameOver then
+    if not Game_Over then
         draw_player()
     end
     draw_walls()
@@ -620,7 +719,4 @@ function _draw(dt)
     draw_crosshair()
 
     -- Game Over
-    if GameOver then
-        draw_game_over()
-    end
 end
