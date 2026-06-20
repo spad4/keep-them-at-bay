@@ -180,7 +180,7 @@ local function draw_particle(particle)
     local config = particle.config
 
     if particle.type == "text" then
-        local shadow = gfx[compute_particle_expression(particle, config.shadow)]
+        local shadow = compute_particle_expression(particle, config.shadow)
         local text = compute_particle_expression(particle, config.text or "'.'")
         local alpha = compute_particle_expression(particle, config.alpha or 1)
         local scale = compute_particle_expression(particle, config.scale or 1)
