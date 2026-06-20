@@ -181,5 +181,30 @@
             "length": 4,
             "rotation": 0.5
         }
+    },
+    {
+        "name": "hitscan_bullet",
+        "duration": 0.05,
+        "type": "line",
+        "color": "gfx.COLOR_YELLOW",
+        "dx": 0,
+        "dy": 0,
+        "config": {
+            "length": 1000,
+            "rotation": 0.5
+        }
+    },
+    {
+        "name": "spent_bullet",
+        "duration": 0.75,
+        "type": "line",
+        "color": "gfx.COLOR_YELLOW",
+        "dx": "self.age * 40 * (self.flip or 1)",
+        "dy": "(4*(self.age - self.duration / 2) ^ 2) * 20 - 18",
+        "config": {
+            "length": 2,
+            "rotation": "self.age * 20",
+            "centered": true
+        }
     }
 ]

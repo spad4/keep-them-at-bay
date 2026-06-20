@@ -229,8 +229,8 @@ local function draw_particle(particle)
         local rotation = compute_particle_expression(particle, config.rotation or 0)
 
         local x1, y1 = adjusted_x, adjusted_y
-        local px, py = math.cos(rotation * math.pi) * length, math.sin(rotation * math.pi) * length
-
+        local v = util.vec_from_angle(rotation, length)
+        local px, py = v.x, v.y
         if config.centered then
             x1 -= px / 2
             y1 -= py / 2
