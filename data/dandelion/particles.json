@@ -1,6 +1,7 @@
 [
     {
         "name": "game_over",
+        "emissive": true,
         "duration": 9999,
         "type": "text",
         "color": "gfx.COLOR_RED",
@@ -14,6 +15,7 @@
     },
     {
         "name": "stats_text",
+        "emissive": true,
         "duration": 9999,
         "type": "text",
         "color": "gfx.COLOR_WHITE",
@@ -27,6 +29,7 @@
     },
     {
         "name": "debug_text",
+        "emissive": true,
         "duration": 1,
         "color": "gfx.COLOR_WHITE",
         "type": "text",
@@ -39,6 +42,7 @@
     },
     {
         "name": "money_up",
+        "emissive": true,
         "duration": 0.75,
         "color": "gfx.COLOR_GREEN",
         "type": "text",
@@ -52,6 +56,7 @@
     },
     {
         "name": "money_down",
+        "emissive": true,
         "duration": 0.75,
         "color": "gfx.COLOR_RED",
         "type": "text",
@@ -65,6 +70,7 @@
     },
     {
         "name": "hitscan_bullet",
+        "emissive": true,
         "duration": 0.05,
         "type": "line",
         "color": "gfx.COLOR_YELLOW",
@@ -91,7 +97,7 @@
     {
         "name": "small_smoke",
         "duration": 1,
-        "color": "self.random_1 > 0.5 and gfx.COLOR_WHITE or gfx.COLOR_LIGHT_GRAY",
+        "color": "self.random_1 > 0.5 and gfx.COLOR_WHITE or gfx.COLOR_DARK_GRAY",
         "dx": "self.age * -1 * (self.random_2 * 4 + 2)",
         "dy": "self.age * -5",
         "type": "triangle",
@@ -107,6 +113,41 @@
         "type": "circle",
         "config": {
             "radius": "(self.random_2 * 4 + 2) * (1 - self.age / self.duration)"
+        }
+    },
+    {
+        "name": "explosion_smoke",
+        "duration": "self.random_2 * 0.5 + 0.5",
+        "dx": "self.age * (self.random_3 * 32 - 16) * (1 + (1 - (self.age / self.duration) ^ 2))",
+        "dy": "self.age * (self.random_4 * 32 - 16) * (1 + (1 - (self.age / self.duration) ^ 2))",
+        "color": "self.random_1 > 0.5 and gfx.COLOR_LIGHT_GRAY or gfx.COLOR_DARK_GRAY",
+        "type": "circle",
+        "config": {
+            "radius": "(self.random_2 * 4 + 2) * (1 - self.age / self.duration)"
+        }
+    },
+    {
+        "name": "explosion_ground",
+        "duration": "self.age * 0.5 + 0.5",
+        "dx": "self.age * (self.random_1 * -64 + 32)",
+        "dy": "(self.random_4 * 3 + 3) * ((8 * self.age - 2) ^ 2) - 16",
+        "color": "gfx.COLOR_BROWN",
+        "type": "triangle",
+        "config": {
+            "size": "(self.random_2 * 2 + 3) * (1 - self.age / self.duration)",
+            "rotation": "self.random_3 + self.age * (self.random_1 * 2 - 4)"
+        }
+    },
+    {
+        "name": "explosion_flames",
+        "emissive": true,
+        "duration": "self.age * 0.5 + 0.5",
+        "dx": "self.age * (self.random_1 * -8 + 4)",
+        "color": "self.age > (self.random_3*0.2 + 0.4) and gfx.COLOR_RED or self.age > (self.random_3*0.2 + 0.25) and gfx.COLOR_ORANGE or gfx.COLOR_YELLOW",
+        "type": "circle",
+        "config": {
+            "radius": "(self.random_2 * 6 + 6) * (1 - self.age / self.duration)",
+            "rotation": "self.random_3 + self.age * (self.random_1 * 2 - 4)"
         }
     },
     {

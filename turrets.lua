@@ -1,6 +1,7 @@
 return {
-    ["rifle"] = {
-        name = "FOX",
+    ["rifle_turret_1"] = {
+        id = "rifle_turret_1",
+        name = "FOX Mk. I",
         x = 112,
         y = 224,
         description = "Fires at a reliable pace with decent accuracy.",
@@ -8,14 +9,47 @@ return {
         display_cost = "250",
         fire_rate = 1,
         damage = 3,
-        range = 80,
+        range = 100,
         count = 1,
         recoil = 1,
         spread = 15,
         bullet = "rifle"
     },
-    ["shotgun"] = {
-        name = "SLUG",
+    ["rifle_turret_2"] = {
+        id = "rifle_turret_2",
+        name = "FOX Mk. II",
+        x = 112,
+        y = 224,
+        description = "Refined rifling improves accuracy and damage.",
+        cost = 250,
+        display_cost = "250",
+        fire_rate = 1,
+        damage = 5,
+        range = 100,
+        count = 1,
+        recoil = 1,
+        spread = 12,
+        bullet = "rifle"
+    },
+    ["rifle_turret_3"] = {
+        id = "rifle_turret_3",
+        name = "FOX Mk. III",
+        x = 112,
+        y = 224,
+        description = "Accelerated feed mechanism reduces reload time.",
+        cost = 500,
+        display_cost = "500",
+        fire_rate = 0.5,
+        damage = 5,
+        range = 100,
+        count = 1,
+        recoil = 1,
+        spread = 12,
+        bullet = "rifle"
+    },
+    ["shotgun_turret"] = {
+        id = "shotgun_turret",
+        name = "SLUG Mk. I",
         x = 112,
         y = 224,
         description = "Fires a spread of bullets at short range.",
@@ -29,14 +63,15 @@ return {
         spread = 25,
         bullet = "rifle"
     },
-    ["sniper"] = {
-        name = "VIPER",
+    ["sniper_turret"] = {
+        id = "sniper_turret",
+        name = "VIPER Mk. I",
         x = 112,
         y = 224,
         description = "Fires high-velocity rounds with extreme precision.",
         cost = 2000,
         display_cost = "2k",
-        fire_rate = 80,
+        fire_rate = 0.1,
         range = 160,
         damage = 20,
         count = 1,
@@ -44,23 +79,25 @@ return {
         spread = 1,
         bullet = "rifle"
     },
-    ["ice"] = {
-        name = "URSA",
+    ["ice_turret"] = {
+        id = "ice_turret",
+        name = "URSA Mk. I",
         x = 112,
         y = 224,
         description = "Discharges freezing vapors that chill undead.",
         cost = 2000,
         display_cost = "2k",
         fire_rate = 4,
-        range = 120,
+        range = 40,
         damage = 3,
         count = 1,
         recoil = 0.25,
         spread = 40,
         bullet = "rifle"
     },
-    ["sawblade"] = {
-        name = "SHARK",
+    ["sawblade_turret"] = {
+        id = "sawblade_turret",
+        name = "SHARK Mk. I",
         x = 112,
         y = 224,
         description = "Fires rotating sawblades that cut through undead.",
@@ -74,23 +111,9 @@ return {
         spread = 1,
         bullet = "rifle"
     },
-    ["landmine"] = {
-        name = "TORTOISE",
-        x = 112,
-        y = 224,
-        description = "Explodes when stepped on.",
-        cost = 2000,
-        display_cost = "2k",
-        fire_rate = 1000,
-        range = 0,
-        damage = 100,
-        count = 1,
-        recoil = 2,
-        spread = 100,
-        bullet = "rifle"
-    },
-    ["flamethrower"] = {
-        name = "KOMODO",
+    ["flamethrower_turret"] = {
+        id = "flamethrower_turret",
+        name = "KOMODO Mk. I",
         x = 112,
         y = 224,
         description = "Spits fire at nearby undead.",
@@ -104,8 +127,25 @@ return {
         spread = 40,
         bullet = "rifle"
     },
-    ["tesla"] = {
-        name = "EEL",
+    ["tesla_turret"] = {
+        id = "tesla_turret",
+        name = "EEL Mk. I",
+        x = 112,
+        y = 224,
+        description = "Stuns undead with high-voltage electricity.",
+        cost = 2000,
+        display_cost = "2k",
+        fire_rate = 30,
+        range = 80,
+        damage = 10,
+        count = 1,
+        recoil = 2,
+        spread = 1,
+        bullet = "rifle"
+    },
+    ["laser_turret"] = {
+        id = "laser_turret",
+        name = "EEL Mk. I",
         x = 112,
         y = 224,
         description = "Stuns undead with high-voltage electricity.",

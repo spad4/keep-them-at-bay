@@ -52,6 +52,39 @@
         ]
     },
     {
+        "name": "frag_grenade",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "explosion_smoke",
+                "count": 64,
+                "shape": "circle",
+                "config": {
+                    "radius": 16,
+                    "motion": 32
+                }
+            },
+            {
+                "name": "explosion_ground",
+                "count": 32,
+                "shape": "circle",
+                "config": {
+                    "radius": 16,
+                    "motion": 64
+                }
+            },
+            {
+                "name": "explosion_flames",
+                "count": 16,
+                "shape": "circle",
+                "config": {
+                    "radius": 24,
+                    "motion": 16
+                }
+            }
+        ]
+    },
+    {
         "name": "zombie_die",
         "duration": 0,
         "particles": [

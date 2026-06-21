@@ -506,6 +506,52 @@ function dandelion.Draw()
     -- start at the end of the list so remove operations don't make i skip a value
     for i = #particle_cache, 1, -1 do
         local particle = particle_cache[i]
+        if particle.emissive then goto continue end
+        --[[
+            why replace instead of remove?
+            in lua, removing an item from the middle of the table shifts all items to the right of it
+            which means that removing an item this way will run a loop of n iterations, where n is
+            the number of elements to the right of that item
+            if we remove every particle immediately when it dies, that means that in the worse case
+            particle_cache results in n^2 iterations in a single frame, which is potentially millions
+            obviously, that's really bad for performance
+            so instead we keep track of which indices can be safely replaced without overwriting a living particle
+            and prefer replacing a living particle over increasing the size of the cache
+            culling helps even more because then the size of the cache will never exceed an amount that
+            would cause table.remove to majorly impact performance
+        ]] --
+        if particle.dead or usagi.elapsed - particle.born > particle.duration then
+            if remove_budget > 0 then
+                if not particle.dead then alive_particles = alive_particles - 1 end
+                table.remove(particle_cache, i)
+                remove_budget -= 1
+            else
+                if not particle.dead then
+                    particle.dead = true
+                    alive_particles -= 1
+                    -- next time a particle spawns, it will try to replace this one in the table
+                    -- instead of expanding the cache
+                    table.insert(open_indices, i)
+                end
+            end
+        else
+            if not particle.emissive then
+                draw_particle(particle)
+            end
+        end
+        ::continue::
+    end
+end
+
+function dandelion.DrawEmissive()
+
+    -- remove at most 1% of the total number of particles each frame
+    local remove_budget = #particle_cache * 0.01
+
+    -- start at the end of the list so remove operations don't make i skip a value
+    for i = #particle_cache, 1, -1 do
+        local particle = particle_cache[i]
+        if not particle.emissive then goto continue end
         --[[
             why replace instead of remove?
             in lua, removing an item from the middle of the table shifts all items to the right of it
@@ -536,6 +582,7 @@ function dandelion.Draw()
         else
             draw_particle(particle)
         end
+        ::continue::
     end
 end
 

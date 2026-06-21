@@ -1,5 +1,8 @@
 return {
     ["walker"] = {
+        spr_x = 0,
+        spr_y = 272,
+        variants = 6,
         w = 7,
         h = 10,
         health = 20,
