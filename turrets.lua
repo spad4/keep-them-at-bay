@@ -4,15 +4,15 @@ return {
         x = 112,
         y = 224,
         description = "Fires at a reliable pace with decent accuracy.",
-        cost = 100,
-        display_cost = "100",
+        cost = 250,
+        display_cost = "250",
         fire_rate = 1,
         damage = 3,
         range = 80,
         count = 1,
         recoil = 1,
         spread = 15,
-        bullet = BULLETS["rifle"]
+        bullet = "rifle"
     },
     ["shotgun"] = {
         name = "SLUG",
@@ -27,7 +27,7 @@ return {
         count = 5,
         recoil = 4,
         spread = 25,
-        bullet = BULLETS["rifle"]
+        bullet = "rifle"
     },
     ["sniper"] = {
         name = "VIPER",
@@ -42,7 +42,7 @@ return {
         count = 1,
         recoil = 4,
         spread = 1,
-        bullet = BULLETS["rifle"]
+        bullet = "rifle"
     },
     ["ice"] = {
         name = "URSA",
@@ -57,7 +57,7 @@ return {
         count = 1,
         recoil = 0.25,
         spread = 40,
-        bullet = BULLETS["rifle"]
+        bullet = "rifle"
     },
     ["sawblade"] = {
         name = "SHARK",
@@ -72,7 +72,7 @@ return {
         count = 1,
         recoil = 2,
         spread = 1,
-        bullet = BULLETS["rifle"]
+        bullet = "rifle"
     },
     ["landmine"] = {
         name = "TORTOISE",
@@ -87,7 +87,7 @@ return {
         count = 1,
         recoil = 2,
         spread = 100,
-        bullet = BULLETS["rifle"]
+        bullet = "rifle"
     },
     ["flamethrower"] = {
         name = "KOMODO",
@@ -102,7 +102,7 @@ return {
         count = 1,
         recoil = 2,
         spread = 40,
-        bullet = BULLETS["rifle"]
+        bullet = "rifle"
     },
     ["tesla"] = {
         name = "EEL",
@@ -117,6 +117,6 @@ return {
         count = 1,
         recoil = 2,
         spread = 1,
-        bullet = BULLETS["rifle"]
+        bullet = "rifle"
     }
 }

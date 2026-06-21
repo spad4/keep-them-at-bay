@@ -1,29 +1,29 @@
 [
     {
-      "name": "game_over",
-      "duration": 9999,
-      "type": "text",
-      "color": "gfx.COLOR_RED",
-      "dx": 0,
-      "dy": 0,
-      "config": {
-        "text": "'GAME OVER.'",
-        "shadow": "gfx.COLOR_DARK_PURPLE",
-        "scale": 3
-      }
+        "name": "game_over",
+        "duration": 9999,
+        "type": "text",
+        "color": "gfx.COLOR_RED",
+        "dx": 0,
+        "dy": 0,
+        "config": {
+            "text": "'GAME OVER.'",
+            "shadow": "gfx.COLOR_DARK_PURPLE",
+            "scale": 3
+        }
     },
     {
-      "name": "stats_text",
-      "duration": 9999,
-      "type": "text",
-      "color": "gfx.COLOR_WHITE",
-      "dx": 0,
-      "dy": 0,
-      "config": {
-        "text": "self.print or '.'",
-        "shadow": "gfx.COLOR_DARK_GRAY",
-        "scale": 1
-      }
+        "name": "stats_text",
+        "duration": 9999,
+        "type": "text",
+        "color": "gfx.COLOR_WHITE",
+        "dx": 0,
+        "dy": 0,
+        "config": {
+            "text": "self.print or '.'",
+            "shadow": "gfx.COLOR_INDIGO",
+            "scale": 1
+        }
     },
     {
         "name": "debug_text",
@@ -91,7 +91,7 @@
     {
         "name": "small_smoke",
         "duration": 1,
-        "color": "self.random_1 > 0.5 and gfx.COLOR_WHITE or gfx.COLOR_DARK_GRAY",
+        "color": "self.random_1 > 0.5 and gfx.COLOR_WHITE or gfx.COLOR_LIGHT_GRAY",
         "dx": "self.age * -1 * (self.random_2 * 4 + 2)",
         "dy": "self.age * -5",
         "type": "triangle",
@@ -212,6 +212,18 @@
         "config": {
             "size": "(self.random_2 * 2 + 2) * (1 - self.age / self.duration)",
             "rotation": "self.age * (self.random_1 * 2 - 1)"
+        }
+    },
+    {
+        "name": "rain",
+        "duration": 4,
+        "type": "line",
+        "color": "gfx.COLOR_DARK_BLUE",
+        "dx": "-100 + self.age * 120",
+        "dy": "-400 + self.age * 300",
+        "config": {
+            "length": "self.random_1 * 24 + 12",
+            "rotation": 1.15
         }
     }
 ]

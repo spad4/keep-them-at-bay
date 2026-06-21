@@ -5,7 +5,7 @@ return {
         health = 20,
         damage = 5,
         money = 5,
-        move_delay = 0.75
+        move_delay = 0.6
     },
     ["sprinter"] = {
         w = 7,

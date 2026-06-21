@@ -11,6 +11,19 @@ ZOMBIE_H_ADJUST = 6
 WALL_START = 140
 PLAYER_HEALTH = 20
 
+UNDEAD_SPAWN_ATTRIBUTES = {
+    ["walker"] = {
+        cost = 1,
+        x = 300,
+        y = 50
+    },
+    ["sprinter"] = {
+        cost = 1,
+        x = 300,
+        y = 100
+    }
+}
+
 BULLETS = {
     ["rifle"] = {
         name = "rifle",
@@ -81,8 +94,7 @@ local function reset()
     Highlighted_Turret = nil
     Selected_Turret = nil
     Day = 1
-    Money = 100
-    Weather = "Clear"
+    Money = 250
     Is_Night = false
     Weather = "Clear"
     Game_Over = nil
@@ -90,13 +102,14 @@ local function reset()
     Zombies_Killed = 0
     Money_Made = 0
     Current_Wave = {}
-    Night_Started = 0
+    Transition_Started = 0
     Drawer = false
     Drawer_Height = 0
     Drawer_Items = {}
     Highlighted_Drawer_Item = nil
+    Undead_Spawn_Weights = { ["walker"] = 100 }
     for i = 1, 20 do
-        Walls[i] = 100
+        Walls[i] = math.min(math.random() * 75 + 50, 100)
     end
     for i = 1, 16 do
         Turrets[i] = false
@@ -344,7 +357,7 @@ local function game_over_sequence()
     end
     if over_for > 4 and Game_Over_Phase == 3 then
         conditional_screen_shake(0.5, 0.5)
-        dandelion.stats_text(32, 88, { print = "Days Survived: " .. Day })
+        dandelion.stats_text(32, 88, { print = "Days Survived: " .. Day - 1 })
         Game_Over_Phase = 4
     end
 
@@ -469,33 +482,79 @@ local function do_zombies()
     end
 end
 
-local function start_next_night()
-    -- night time overlay shit or whatever
-
-    Current_Wave = {}
-    if Day > #waves then return end
-
-    local next_wave = waves[Day]
-
-    for i, v in pairs(next_wave) do
-        Current_Wave[i] = v
+local function total_undead_weight()
+    local to_return = 0
+    for _, v in pairs(Undead_Spawn_Weights) do
+        to_return += v
     end
+    return to_return
+end
+
+local function get_random_undead(total)
+    local roll = math.random(1, total)
+    local cumulative = 0
+
+    for type, weight in pairs(Undead_Spawn_Weights) do
+        cumulative += weight
+        if roll < weight then
+            return type
+        end
+    end
+    return "walker"
+end
+
+local function start_next_night()
+
+    local budget = 4 * Day + (Day + 3) ^ 2
+
+    local night_length = util.remap(Day, 1, 31, 30, 120)
+
+    -- duration between waves during the night
+    -- each wave will try to spawn 5 weight worth of undead
+    local spacing = night_length / (budget / 5)
+
+    local total_weight = total_undead_weight()
+
+    for i = 1, night_length, spacing do
+        local type = get_random_undead(total_weight)
+        local cost = UNDEAD_SPAWN_ATTRIBUTES[type].cost
+        local count = util.round(5 / cost)
+        local wave_spawn = {
+            time = i,
+            count = count,
+            type = type,
+            spread = {
+                x = UNDEAD_SPAWN_ATTRIBUTES[type].x,
+                y = UNDEAD_SPAWN_ATTRIBUTES[type].y
+            }
+        }
+        -- print(i .. " " .. type)
+        table.insert(Current_Wave, wave_spawn)
+    end
+    -- print(usagi.to_json(Current_Wave))
 
     Is_Night = true
-    Night_Started = usagi.elapsed
+    Transition_Started = usagi.elapsed
 end
 
 local function do_waves()
     if #Current_Wave == 0 and #Zombies == 0 then
         Day += 1
         Is_Night = false
+        dandelion.ClearEmitters()
+        Weather = "clear"
+        if math.random() > 0.75 then
+            Weather = "rain"
+            dandelion.rain_emitter(usagi.GAME_W / 2, usagi.GAME_H / 2)
+        end
+        Transition_Started = usagi.elapsed
         return
     end
 
     if #Current_Wave == 0 then return end
 
     local next_spawn = Current_Wave[1]
-    if usagi.elapsed - Night_Started > next_spawn.time then
+    if usagi.elapsed - Transition_Started > next_spawn.time then
         for i = 1, next_spawn.count do
             spawn_zombie(next_spawn.type, next_spawn.spread.x, next_spawn.spread.y)
         end
@@ -568,7 +627,7 @@ local function do_turrets()
 
             local zombie, distance = hit_zombie(start_x, start_y, end_x, end_y)
             if zombie then
-                if turret.bullet.name == "rifle" then
+                if turret.bullet == "rifle" then
                     zombie.health -= turret.damage
 
                     -- knockback
@@ -594,8 +653,8 @@ local function do_turrets()
             dandelion.small_smoke(start_x, start_y)
         end
 
-        dandelion[Weapon.bullet.particle](range.x, range.y, { flip = Player.flip and 1 or -1 })
-        conditional_screen_shake(0.1, turret.recoil * 0.5)
+        dandelion[BULLETS[turret.bullet].particle](range.x, range.y, { flip = Player.flip and 1 or -1 })
+        -- conditional_screen_shake(0.1, turret.recoil * 0.5)
         turret.cooldown = usagi.elapsed
         ::continue::
     end
@@ -718,6 +777,9 @@ function _update(dt)
 
     if input.key_pressed(input.KEY_SPACE) and Is_Night == false then
         Drawer = false
+        Selected_Turret = nil
+        Highlighted_Turret = nil
+        Highlighted_Drawer_Item = nil
         start_next_night()
     end
 
@@ -844,7 +906,7 @@ local function draw_hud()
     local money_size = #money * 6
     text_with_shadow(money, 316 - money_size, 154 - math.max(0, Drawer_Height - 12), gfx.COLOR_YELLOW, gfx.COLOR_BROWN)
     local day_night = Is_Night and "Night " or "Day "
-    local counter = day_night .. Day .. "/" .. #waves
+    local counter = day_night .. Day .. "/31"
     local counter_size = #counter * 6
     text_with_shadow(counter, 316 - counter_size, 165, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
     -- local weather = "Forecast: " .. Weather
@@ -862,8 +924,9 @@ local function draw_turrets()
             local m = (usagi.elapsed - turret.cooldown < 0.05 and -1 or 0) * turret.recoil
 
             -- barrel
-            gfx.sspr_ex(turret.x, turret.y - 32, 16, 48, (i - 1) * 20 + 2 + m * recoil.x, 122 - 15 + m * recoil.y, 16, 48, false, false,
-            angle, tint, 1)
+            gfx.sspr_ex(turret.x, turret.y - 32, 16, 48, (i - 1) * 20 + 2 + m * recoil.x, 122 - 15 + m * recoil.y, 16, 48,
+                false, false,
+                angle, tint, 1)
             -- body
             gfx.sspr_ex(turret.x, turret.y + 16, 16, 16, (i - 1) * 20 + 2, 122, 16, 16, false, false, 0, tint, 1)
         end
@@ -947,7 +1010,7 @@ local function draw_drawer()
                 gfx.rect_fill(stat_offset + d * 4, 84, 2, 8, shadow_color)
                 gfx.rect_fill(stat_offset + d * 4, 83, 2, 8, desc_color)
             end
-            for d = 1, 45 - item.spread do
+            for d = 1, 35 - item.spread do
                 gfx.rect_fill(stat_offset + d * 4, 96, 2, 8, shadow_color)
                 gfx.rect_fill(stat_offset + d * 4, 95, 2, 8, desc_color)
             end
@@ -978,8 +1041,18 @@ function _draw(dt)
     end
     draw_walls()
 
-    draw_hud()
     dandelion.Draw()
+
+    -- night time tint
+    if Is_Night then
+        local alpha = math.min((usagi.elapsed - Transition_Started), 0.6)
+        gfx.sspr_ex(496, 496, 16, 16, 0, 0, 320, 180, false, false, 0, gfx.COLOR_DARK_BLUE, alpha)
+    else
+        local alpha = math.max(0.6 - (usagi.elapsed - Transition_Started), 0)
+        gfx.sspr_ex(496, 496, 16, 16, 0, 0, 320, 180, false, false, 0, gfx.COLOR_DARK_BLUE, alpha)
+    end
+
+    draw_hud()
     if Drawer or Drawer_Height > 0 then
         draw_drawer()
     end

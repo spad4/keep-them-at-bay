@@ -162,5 +162,21 @@
                 }
             }
         ]
+    },
+    {
+        "name": "rain_emitter",
+        "duration": 99999,
+        "particles": [
+            {
+                "name": "rain",
+                "count": 100,
+                "frequency": 1,
+                "shape": "rectangle",
+                "config": {
+                    "width": 400,
+                    "height": 400
+                }
+            }
+        ]
     }
 ]
