@@ -187,7 +187,7 @@ local function draw_particle(particle)
         local rotation = compute_particle_expression(particle, config.rotation or 0) * math.pi
 
         if shadow then
-            gfx.text_ex("" .. text, adjusted_x + 1, adjusted_y + 1, scale, rotation, shadow, alpha)
+            gfx.text_ex("" .. text, adjusted_x, adjusted_y + 1, scale, rotation, shadow, alpha)
         end
         gfx.text_ex("" .. text, adjusted_x, adjusted_y, scale, rotation, color, alpha)
     elseif particle.type == "circle" then

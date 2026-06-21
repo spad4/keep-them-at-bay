@@ -37,6 +37,21 @@
         ]
     },
     {
+        "name": "construction",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "construction_smoke",
+                "count": 32,
+                "shape": "circle",
+                "config": {
+                    "radius": 16,
+                    "motion": 8
+                }
+            }
+        ]
+    },
+    {
         "name": "zombie_die",
         "duration": 0,
         "particles": [

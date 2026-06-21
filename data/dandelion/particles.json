@@ -26,6 +26,18 @@
       }
     },
     {
+        "name": "debug_text",
+        "duration": 1,
+        "color": "gfx.COLOR_WHITE",
+        "type": "text",
+        "dy": "-3 * math.log(self.age * 20 + 1, 2)",
+        "config": {
+            "text": "self.print or '.'",
+            "shadow": "gfx.COLOR_DARK_GRAY",
+            "alpha": "1 - self.age / self.duration"
+        }
+    },
+    {
         "name": "money_up",
         "duration": 0.75,
         "color": "gfx.COLOR_GREEN",
@@ -74,6 +86,27 @@
             "length": 2,
             "rotation": "self.age * 20",
             "centered": true
+        }
+    },
+    {
+        "name": "small_smoke",
+        "duration": 1,
+        "color": "self.random_1 > 0.5 and gfx.COLOR_WHITE or gfx.COLOR_DARK_GRAY",
+        "dx": "self.age * -1 * (self.random_2 * 4 + 2)",
+        "dy": "self.age * -5",
+        "type": "triangle",
+        "config": {
+            "size": "(self.random_2 * 1 + 1) - self.age / self.duration",
+            "rotation": "self.random_3 * 0.5"
+        }
+    },
+    {
+        "name": "construction_smoke",
+        "duration": "self.random_2 * 2 + 1",
+        "color": "self.random_1 > 0.5 and gfx.COLOR_LIGHT_GRAY or gfx.COLOR_DARK_GRAY",
+        "type": "circle",
+        "config": {
+            "radius": "(self.random_2 * 4 + 2) * (1 - self.age / self.duration)"
         }
     },
     {

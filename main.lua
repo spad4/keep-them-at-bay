@@ -1,6 +1,7 @@
 local dandelion = require("dandelion")
 local waves = require("waves")
 local zombies = require("zombies")
+local turrets = require("turrets")
 
 H_SIZE = 16
 PLAYER_SPEED = 40
@@ -12,6 +13,7 @@ PLAYER_HEALTH = 20
 
 BULLETS = {
     ["rifle"] = {
+        name = "rifle",
         spr_x = 321,
         spr_y = 176,
         spr_w = 2,
@@ -28,7 +30,7 @@ WEAPONS = {
         count = 1,
         ammo = 10,
         recoil = 0.5,
-        spread = 15,
+        spread = 12,
         reload = 2,
         bullet = BULLETS["rifle"]
     },
@@ -50,11 +52,7 @@ function _config()
     return { name = "Keep Them At Bay", game_id = "com.spad.keep_them_at_bay" }
 end
 
-function _init()
-    -- Live reload preserves globals across saved edits but resets locals.
-    -- Stash mutable game state in a capitalized global like `State` so it
-    -- survives reloads; F5 calls _init again to reset.
-    State = {}
+local function reset()
     Zombies = {}
     WallZombies = {}
     Player = {
@@ -78,8 +76,12 @@ function _init()
     Reloading = false
     Reload_Start = 0
     Walls = {}
+    Turrets = {}
+    Discovered_Turrets = { "rifle" }
+    Highlighted_Turret = nil
+    Selected_Turret = nil
     Day = 1
-    Money = 0
+    Money = 100
     Weather = "Clear"
     Is_Night = false
     Weather = "Clear"
@@ -89,20 +91,39 @@ function _init()
     Money_Made = 0
     Current_Wave = {}
     Night_Started = 0
+    Drawer = false
+    Drawer_Height = 0
+    Drawer_Items = {}
+    Highlighted_Drawer_Item = nil
     for i = 1, 20 do
         Walls[i] = 100
     end
+    for i = 1, 16 do
+        Turrets[i] = false
+    end
     dandelion.ClearAll()
-    input.set_mouse_visible(false)
     gfx.shader_set(nil)
 end
 
-local function spawn_zombie(type, min, max)
+function _init()
+    reset()
+    Screen_Shake = true
+    dandelion.ClearAll()
+    input.set_mouse_visible(false)
+end
+
+local function conditional_screen_shake(time, intensity)
+    if Screen_Shake then
+        effect.screen_shake(time, intensity)
+    end
+end
+
+local function spawn_zombie(type, x, y)
     local model = zombies[type]
 
     local new_zombie = {}
-    new_zombie.x = math.random(min, max)
-    new_zombie.y = math.random(-30, -10) - model.h
+    new_zombie.x = math.random(160 - x / 2, 160 + x / 2)
+    new_zombie.y = -1 * (math.random(0, y) + model.h * 2)
     -- new_zombie.y = 100
     new_zombie.last_move = usagi.elapsed;
     new_zombie.moved = false
@@ -263,10 +284,11 @@ local function shoot()
             dandelion.hitscan_bullet(start_x, start_y,
                 { ["config"] = { length = 1000, rotation = Mouse_Angle + spread } })
         end
+        dandelion.small_smoke(start_x, start_y)
     end
 
     dandelion[Weapon.bullet.particle](adjusted_x, adjusted_y, { flip = Player.flip and 1 or -1 })
-    effect.screen_shake(0.1, Weapon.recoil)
+    conditional_screen_shake(0.1, Weapon.recoil)
     Fire_Cooldown = Weapon.fire_rate
 end
 
@@ -305,38 +327,42 @@ local function game_over_sequence()
     local over_for = usagi.elapsed - Game_Over
 
     if over_for > 2 and Game_Over_Phase == 0 then
-        effect.screen_shake(0.5, 1)
+        conditional_screen_shake(0.5, 1)
         dandelion.game_over(32, 32)
         Game_Over_Phase = 1
     end
 
     if over_for > 3 and Game_Over_Phase == 1 then
-        effect.screen_shake(0.5, 0.5)
+        conditional_screen_shake(0.5, 0.5)
         dandelion.stats_text(32, 64, { print = "Zombies Killed: " .. Zombies_Killed })
         Game_Over_Phase = 2
     end
     if over_for > 3.5 and Game_Over_Phase == 2 then
-        effect.screen_shake(0.5, 0.5)
+        conditional_screen_shake(0.5, 0.5)
         dandelion.stats_text(32, 76, { print = "Money Made: " .. Money_Made })
         Game_Over_Phase = 3
     end
     if over_for > 4 and Game_Over_Phase == 3 then
-        effect.screen_shake(0.5, 0.5)
+        conditional_screen_shake(0.5, 0.5)
         dandelion.stats_text(32, 88, { print = "Days Survived: " .. Day })
         Game_Over_Phase = 4
     end
 
     if over_for > 5 and Game_Over_Phase == 4 then
-        effect.screen_shake(0.5, 0.75)
-        dandelion.stats_text(32, 112, { print = "Press CTRL + R to restart." })
+        conditional_screen_shake(0.5, 0.75)
+        dandelion.stats_text(32, 112, { print = "Press [SPACE] to restart." })
         Game_Over_Phase = 5
+    end
+
+    if input.key_pressed(input.KEY_SPACE) then
+        reset()
     end
 end
 
 local function check_player_dead()
     if Player.health <= 0 then
         dandelion.player_die(Player.x + 8, Player.y + 6)
-        effect.screen_shake(2, 1)
+        conditional_screen_shake(2, 1)
         Game_Over = usagi.elapsed
     end
 end
@@ -345,11 +371,11 @@ local function damage_player(damage)
     Player.last_health = Player.health
     Player.health -= damage
     Player.last_hit = usagi.elapsed
-    effect.screen_shake(0.25, damage * 0.1)
+    conditional_screen_shake(0.25, damage * 0.1)
     local hp_percent = 64 * Player.health / PLAYER_HEALTH
     dandelion.health_bar_hit(4 + hp_percent, 168, { length = 4 * (Player.last_health - Player.health) })
     dandelion.player_hit(Player.x + 8, Player.y)
-    effect.screen_shake(0.25, damage * 0.25)
+    conditional_screen_shake(0.25, damage * 0.25)
     check_player_dead()
 end
 
@@ -360,9 +386,9 @@ local function change_money(amount)
     local length = math.floor(math.log(math.abs(amount), 10)) * 6
     if amount > 0 then
         Money_Made += amount
-        dandelion.money_up(310, 154, {amount = amount, length = length})
+        dandelion.money_up(310, 149 - math.max(0, Drawer_Height - 12), { amount = amount, length = length })
     else
-        dandelion.money_down(310, 154, {amount = math.abs(amount), length = length})
+        dandelion.money_down(310, 149 - math.max(0, Drawer_Height - 12), { amount = math.abs(amount), length = length })
     end
     Money += amount
 end
@@ -432,7 +458,7 @@ local function do_zombies()
                             zombie.x = zombie.flip and (usagi.GAME_W + ZOMBIE_W_ADJUST * 2) or (ZOMBIE_W_ADJUST * -2)
                         end
                     else
-                        effect.screen_shake(0.25, zombie.damage * 0.025)
+                        conditional_screen_shake(0.25, zombie.damage * 0.025)
                     end
                     zombie.last_move = elapsed
                 end
@@ -444,40 +470,134 @@ local function do_zombies()
 end
 
 local function start_next_night()
-    
     -- night time overlay shit or whatever
 
     Current_Wave = {}
     if Day > #waves then return end
-    
+
     local next_wave = waves[Day]
 
-    for i,v in pairs(next_wave) do
+    for i, v in pairs(next_wave) do
         Current_Wave[i] = v
     end
 
     Is_Night = true
     Night_Started = usagi.elapsed
-
 end
 
 local function do_waves()
-
     if #Current_Wave == 0 and #Zombies == 0 then
         Day += 1
         Is_Night = false
         return
     end
-    
+
     if #Current_Wave == 0 then return end
 
     local next_spawn = Current_Wave[1]
     if usagi.elapsed - Night_Started > next_spawn.time then
-
         for i = 1, next_spawn.count do
-            spawn_zombie(next_spawn.type, next_spawn.spread.min, next_spawn.spread.max)
+            spawn_zombie(next_spawn.type, next_spawn.spread.x, next_spawn.spread.y)
         end
         table.remove(Current_Wave, 1)
+    end
+end
+
+local function fill_drawer_items()
+    Drawer_Items = {}
+    local selected = Turrets[Selected_Turret]
+
+    -- empty turret slot
+    if not selected then
+        for _, name in pairs(Discovered_Turrets) do
+            table.insert(Drawer_Items, turrets[name])
+        end
+    end
+end
+
+local function get_nearest_in_range(range)
+    local can_hit = {}
+    local closest_distance = 9999
+    local closest_index = 0
+    for _, zombie in pairs(Zombies) do
+        if zombie.y <= WALL_START - 32 and not zombie.on_wall then -- zombies past the wall cannot be shot
+            local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
+            if util.circ_rect_overlap(range, rect) then
+                table.insert(can_hit, zombie)
+                local distance = util.vec_dist({ x = range.x, y = range.y },
+                    { x = zombie.x + ZOMBIE_W_ADJUST + 3, y = zombie.y + ZOMBIE_H_ADJUST + 3 })
+                if distance < closest_distance then
+                    closest_distance = distance
+                    closest_index = #can_hit
+                end
+            end
+        end
+    end
+
+    if #can_hit == 0 then return nil end
+
+    return can_hit[closest_index], closest_distance
+end
+
+local function do_turrets()
+    for i, turret in pairs(Turrets) do
+        if not turret then goto continue end
+        if usagi.elapsed - turret.cooldown < turret.fire_rate then goto continue end
+
+        local range = { x = i * 20 - 10, y = 130, r = turret.range }
+        local z = get_nearest_in_range(range)
+
+        if not z then goto continue end
+
+        local dx, dy = z.x + ZOMBIE_W_ADJUST + 2 - range.x, z.y + ZOMBIE_H_ADJUST + 2 - range.y
+        local h = util.vec_dist({ x = 0, y = 0 }, { x = dx, y = dy })
+        local theta = math.asin(dy / h)
+        local angle = dx > 0 and theta or (math.pi - theta)
+        turret.angle = angle
+
+        local vec = util.vec_from_angle(angle, 24)
+        local adjusted_spread = turret.spread * 0.01
+
+        for j = 1, turret.count do
+            local spread = math.random() * adjusted_spread - adjusted_spread / 2
+
+            -- calculates the hitbox of the bullet
+            local start_x, start_y = range.x + vec.x, range.y + vec.y
+            local spread_vec = util.vec_from_angle(angle + spread, 500)
+            local end_x, end_y = start_x + spread_vec.x, start_y + spread_vec.y
+
+            local zombie, distance = hit_zombie(start_x, start_y, end_x, end_y)
+            if zombie then
+                if turret.bullet.name == "rifle" then
+                    zombie.health -= turret.damage
+
+                    -- knockback
+                    local scaled_damage = turret.damage / 10
+                    local kb_x = math.floor(vec.x * scaled_damage)
+                    local kb_y = math.floor(vec.y * scaled_damage)
+                    if math.abs(kb_x) > math.abs(zombie.kb_x) then
+                        zombie.kb_x = kb_x
+                    end
+                    if math.abs(kb_y) > math.abs(zombie.kb_y) then
+                        zombie.kb_y = kb_y
+                    end
+                end
+
+                dandelion.zombie_spray(start_x + math.cos(angle + spread) * distance,
+                    start_y + math.sin(angle + spread) * distance, { spray_x = vec.x / 4, spray_y = vec.y / 4 })
+                dandelion.hitscan_bullet(start_x, start_y,
+                    { ["config"] = { length = distance, rotation = angle + spread, thickness = 1 } })
+            else
+                dandelion.hitscan_bullet(start_x, start_y,
+                    { ["config"] = { length = 1000, rotation = angle + spread, thickness = 1 } })
+            end
+            dandelion.small_smoke(start_x, start_y)
+        end
+
+        dandelion[Weapon.bullet.particle](range.x, range.y, { flip = Player.flip and 1 or -1 })
+        conditional_screen_shake(0.1, turret.recoil * 0.5)
+        turret.cooldown = usagi.elapsed
+        ::continue::
     end
 end
 
@@ -498,9 +618,9 @@ function _update(dt)
 
     if Is_Night then
         do_waves()
+        do_turrets()
+        do_zombies()
     end
-
-    do_zombies()
 
     local mx, my = input.mouse()
     local dx, dy = mx - Player.x - 8, my - Player.y - 11
@@ -511,7 +631,6 @@ function _update(dt)
     GunAngle = dx > 0 and theta or (math.pi - theta)
     Player.flip = dx < 0 and true or false
 
-
     if Player.kb ~= 0 then
         local amount = math.sqrt(math.abs(Player.kb))
         Player.x += amount * (Player.kb > 0 and 1 or -1)
@@ -519,11 +638,11 @@ function _update(dt)
     end
 
     if input.key_held(input.KEY_H) then
-        -- spawn_zombie()
+        spawn_zombie("walker", 60, 0)
     end
 
     if input.key_pressed(input.KEY_C) then
-        change_money(-5)
+        change_money(20)
     end
 
     local should_move = false
@@ -545,20 +664,67 @@ function _update(dt)
 
     Player.moving = should_move
 
-    if input.mouse_held(input.MOUSE_LEFT) then
-        if Fire_Cooldown == 0 then
-            if Ammo > 0 then
-                shoot()
+    if Is_Night then
+        if input.mouse_held(input.MOUSE_LEFT) then
+            if Fire_Cooldown == 0 then
+                if Ammo > 0 then
+                    shoot()
+                end
+                if Ammo < 1 and not Reloading then
+                    Reloading = true
+                    Reload_Start = usagi.elapsed
+                end
             end
-            if Ammo < 1 and not Reloading then
-                Reloading = true
-                Reload_Start = usagi.elapsed
+        end
+    else
+        if my > 120 and my < 140 then
+            Highlighted_Turret = math.floor(mx / 20 + 1)
+        else
+            Highlighted_Turret = nil
+        end
+
+        Highlighted_Drawer_Item = nil
+        if Drawer and my >= usagi.GAME_H - 32 and my <= usagi.GAME_H - 4 and mx >= 16 and mx <= usagi.GAME_W - 16 then
+            local index = math.floor((mx - 16) / 32 + 1)
+            if index <= #Drawer_Items then
+                Highlighted_Drawer_Item = index
+            end
+        end
+        if input.mouse_pressed(input.MOUSE_LEFT) then
+            if my < 120 then
+                Drawer = false
+                Selected_Turret = nil
+            elseif Highlighted_Turret ~= nil then
+                Selected_Turret = Highlighted_Turret
+                Drawer = true
+                fill_drawer_items()
+            elseif Highlighted_Drawer_Item ~= nil then
+                local item = Drawer_Items[Highlighted_Drawer_Item]
+                if item.cost <= Money then
+                    change_money(item.cost * -1)
+                    Turrets[Selected_Turret] = {}
+                    for k, v in pairs(item) do
+                        Turrets[Selected_Turret][k] = v
+                        Turrets[Selected_Turret].cooldown = 0
+                        Turrets[Selected_Turret].angle = -0.5 * math.pi
+                    end
+                    dandelion.construction((Selected_Turret - 1) * 20 + 10, 128)
+                    conditional_screen_shake(0.25, 0.75)
+                    fill_drawer_items()
+                end
             end
         end
     end
 
     if input.key_pressed(input.KEY_SPACE) and Is_Night == false then
+        Drawer = false
         start_next_night()
+    end
+
+    if input.key_pressed(input.KEY_K) then
+        Screen_Shake = not Screen_Shake
+        local text = Screen_Shake and "Screen Shake ENABLED" or "Screen Shake DISABLED"
+        dandelion.debug_text(mx, my, { print = text })
     end
 end
 
@@ -625,7 +791,7 @@ end
 local function draw_crosshair()
     local mx, my = input.mouse()
 
-    local adjusted_spread = (Mouse_Distance / 150) * Weapon.spread / 2
+    local adjusted_spread = Is_Night and ((Mouse_Distance / 150) * Weapon.spread / 2) or 0
 
     gfx.line(mx + adjusted_spread + 1, my, mx + 1.5 * adjusted_spread + 3, my, gfx.COLOR_TRUE_WHITE)
     gfx.line(mx - (adjusted_spread + 2), my, mx - (1.5 * adjusted_spread + 4), my, gfx.COLOR_TRUE_WHITE)
@@ -633,18 +799,25 @@ local function draw_crosshair()
     gfx.line(mx, my - (adjusted_spread + 1), mx, my - (1.5 * adjusted_spread + 3), gfx.COLOR_TRUE_WHITE)
 end
 
+local function bold_text_with_shadow(text, x, y, color, shadow_color)
+    gfx.text_ex(text, x, y + 2, 2, 0, shadow_color, 1)
+    gfx.text_ex(text, x + 1, y + 2, 2, 0, shadow_color, 1)
+    gfx.text_ex(text, x, y, 2, 0, color, 1)
+    gfx.text_ex(text, x + 1, y, 2, 0, color, 1)
+end
+
 local function text_with_shadow(text, x, y, color, shadow_color)
-    gfx.text(text, x + 1, y + 1, shadow_color)
+    gfx.text(text, x, y + 1, shadow_color)
     gfx.text(text, x, y, color)
 end
 
 local function draw_hud()
-
     -- Ammo bar
     gfx.rect_fill(4, 157, Weapon.ammo * Weapon.bullet.spr_w + 3, 10, gfx.COLOR_BLACK)
     gfx.rect_fill(4, 156, Weapon.ammo * Weapon.bullet.spr_w + 3, 10, gfx.COLOR_DARK_GRAY)
     if Reloading then
-        text_with_shadow("Reloading...", Weapon.ammo * Weapon.bullet.spr_w + 9, 154, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
+        text_with_shadow("Reloading...", Weapon.ammo * Weapon.bullet.spr_w + 9, 154, gfx.COLOR_WHITE, gfx
+            .COLOR_DARK_GRAY)
     end
     for i = Ammo + 1, Weapon.ammo do
         gfx.sspr(Weapon.bullet.spr_x, Weapon.bullet.spr_y + Weapon.bullet.spr_h, Weapon.bullet.spr_w, Weapon.bullet
@@ -669,7 +842,7 @@ local function draw_hud()
     -- Money and days
     local money = "$" .. Money
     local money_size = #money * 6
-    text_with_shadow(money, 316 - money_size, 154, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
+    text_with_shadow(money, 316 - money_size, 154 - math.max(0, Drawer_Height - 12), gfx.COLOR_YELLOW, gfx.COLOR_BROWN)
     local day_night = Is_Night and "Night " or "Day "
     local counter = day_night .. Day .. "/" .. #waves
     local counter_size = #counter * 6
@@ -677,6 +850,36 @@ local function draw_hud()
     -- local weather = "Forecast: " .. Weather
     -- local weather_size = #weather * 6
     -- text_with_shadow(weather, 316 - weather_size, 166, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
+end
+
+local function draw_turrets()
+    for i, turret in pairs(Turrets) do
+        if turret then
+            local tint = Selected_Turret == i and gfx.COLOR_YELLOW or gfx.COLOR_TRUE_WHITE
+
+            local recoil = util.vec_from_angle(turret.angle, 1)
+            local angle = turret.angle + 0.5 * math.pi
+            local m = (usagi.elapsed - turret.cooldown < 0.05 and -1 or 0) * turret.recoil
+
+            -- barrel
+            gfx.sspr_ex(turret.x, turret.y - 32, 16, 48, (i - 1) * 20 + 2 + m * recoil.x, 122 - 15 + m * recoil.y, 16, 48, false, false,
+            angle, tint, 1)
+            -- body
+            gfx.sspr_ex(turret.x, turret.y + 16, 16, 16, (i - 1) * 20 + 2, 122, 16, 16, false, false, 0, tint, 1)
+        end
+    end
+end
+
+local function draw_turret_outlines()
+    for i, turret in pairs(Turrets) do
+        if i == Highlighted_Turret then
+            gfx.rect((Highlighted_Turret - 1) * 20, 120, 20, 20, gfx.COLOR_TRUE_WHITE)
+        end
+        local tint = Selected_Turret == i and gfx.COLOR_YELLOW or gfx.COLOR_LIGHT_GRAY
+        if not turret then
+            gfx.spr_ex(1, (i - 1) * 20 + 2, 122, false, false, 0, tint, 1)
+        end
+    end
 end
 
 local function draw_rampart()
@@ -688,7 +891,7 @@ end
 
 local function draw_walls()
     for i = 1, #Walls do
-        local offset = util.round(6 - (Walls[i]+11) / 20)
+        local offset = util.round(6 - (Walls[i] + 11) / 20)
         if Walls[i] == 0 then
             offset = 6
         end
@@ -697,15 +900,77 @@ local function draw_walls()
     end
 end
 
-function _draw(dt)
-    gfx.clear(gfx.COLOR_BLACK)
+local function draw_drawer()
+    if Drawer and Drawer_Height < 40 then
+        Drawer_Height = util.clamp(Drawer_Height - 3 * math.log((1 - (Drawer_Height + 1) / 40)) + 1, 0, 40)
+        if Drawer_Height == 40 then
+            conditional_screen_shake(0.25, 0.5)
+        end
+    end
 
+    if not Drawer and Drawer_Height > 0 then
+        Drawer_Height = util.clamp(Drawer_Height + 3 * math.log(((Drawer_Height) / 40)) - 1, 0, 40)
+    end
+
+    local h = usagi.GAME_H
+
+    gfx.rect_fill(0, h - Drawer_Height, 320, h, gfx.COLOR_BLACK)
+    gfx.line(0, h - Drawer_Height, 320, h - Drawer_Height, gfx.COLOR_TRUE_WHITE)
+
+    local base_offset = -16
+
+    for i, item in pairs(Drawer_Items) do
+        local x = base_offset + i * 32
+        local y = h + 8 - Drawer_Height
+        if i == Highlighted_Drawer_Item then
+            gfx.rect(x - 2, y - 2, 32, 32, gfx.COLOR_WHITE)
+            bold_text_with_shadow(item.name, 16, 16, gfx.COLOR_RED, gfx.COLOR_DARK_PURPLE)
+
+            local desc_color = gfx.COLOR_TRUE_WHITE
+            local shadow_color = gfx.COLOR_INDIGO
+            text_with_shadow(item.description, 16, 40, desc_color, shadow_color)
+            text_with_shadow("Damage ", 16, 56, desc_color, shadow_color)
+            text_with_shadow("Fire Rate", 16, 68, desc_color, shadow_color)
+            text_with_shadow("Range", 16, 80, desc_color, shadow_color)
+            text_with_shadow("Accuracy", 16, 92, desc_color, shadow_color)
+
+            local stat_offset = 72
+            for d = 1, item.damage do
+                gfx.rect_fill(stat_offset + d * 4, 60, 2, 8, shadow_color)
+                gfx.rect_fill(stat_offset + d * 4, 59, 2, 8, desc_color)
+            end
+            for d = 1, item.fire_rate * 16 do
+                gfx.rect_fill(stat_offset + d * 4, 72, 2, 8, shadow_color)
+                gfx.rect_fill(stat_offset + d * 4, 71, 2, 8, desc_color)
+            end
+            for d = 1, item.range / 8 do
+                gfx.rect_fill(stat_offset + d * 4, 84, 2, 8, shadow_color)
+                gfx.rect_fill(stat_offset + d * 4, 83, 2, 8, desc_color)
+            end
+            for d = 1, 45 - item.spread do
+                gfx.rect_fill(stat_offset + d * 4, 96, 2, 8, shadow_color)
+                gfx.rect_fill(stat_offset + d * 4, 95, 2, 8, desc_color)
+            end
+        end
+        if item then
+            gfx.sspr_ex(496, 496, 16, 16, x, y, 28, 28, false, false, 0, gfx.COLOR_DARK_GRAY, 0.5)
+            local color = Money >= item.cost and gfx.COLOR_YELLOW or gfx.COLOR_LIGHT_GRAY
+            local shadow = Money >= item.cost and gfx.COLOR_BROWN or gfx.COLOR_DARK_GRAY
+            text_with_shadow("$" .. item.display_cost, x + 1, y + 16, color, shadow)
+        end
+    end
+end
+
+function _draw(dt)
     -- background
+    gfx.clear(gfx.COLOR_BLACK)
     gfx.sspr_ex(0, 0, 320, 180, 0, 0, 320, 180, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
 
-    -- zombies on the ground
+    if not Is_Night then
+        draw_turret_outlines()
+    end
     draw_zombies()
-
+    draw_turrets()
     draw_rampart()
     draw_wall_zombies()
     if not Game_Over then
@@ -713,10 +978,11 @@ function _draw(dt)
     end
     draw_walls()
 
-    -- UI
     draw_hud()
     dandelion.Draw()
+    if Drawer or Drawer_Height > 0 then
+        draw_drawer()
+    end
     draw_crosshair()
-
     -- Game Over
 end
