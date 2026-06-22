@@ -2,6 +2,7 @@ local dandelion = require("dandelion")
 local ZOMBIES = require("zombies")
 local TURRETS = require("turrets")
 local UNLOCKS = require("unlocks")
+local UPGRADES = require("upgrades")
 local WEAPONS = require("weapons")
 local GRENADES = require("grenades")
 
@@ -11,7 +12,6 @@ ZOMBIE_SPEED = 2
 ZOMBIE_W_ADJUST = 5
 ZOMBIE_H_ADJUST = 6
 WALL_START = 140
-PLAYER_HEALTH = 20
 
 BULLETS = {
     ["rifle"] = {
@@ -51,8 +51,8 @@ local function reset()
     Player = {
         x = 5,
         y = 134,
-        health = PLAYER_HEALTH,
-        last_health = PLAYER_HEALTH,
+        health = Player_Health,
+        last_health = Player_Health,
         flip = false,
         moving = false,
         current_frame = 0,
@@ -61,6 +61,12 @@ local function reset()
         kb = 0
     }
     Player_Skin = math.random(0, 3)
+    Player_Health = 20
+    Health_Regen = 1
+    Income = 0
+    Grenade_Slots = 1
+    Regen_Timer = 0
+    Last_Regen = 0
     Mouse_Angle = 0
     Mouse_Distance = 0
     Fire_Cooldown = 0
@@ -71,9 +77,10 @@ local function reset()
     Walls = {}
     Turrets = {}
     Discovered_Turrets = { "rifle_turret_1" }
-    Discovered_Upgrades = { ["rifle_turret_2"] = true }
+    Discovered_Upgrades = {}
     Highlighted_Turret = nil
     Selected_Turret = nil
+    Last_Selected_Turret = 1
     Day = 1
     Money = 200
     Is_Night = false
@@ -92,13 +99,13 @@ local function reset()
     Highlighted_Tab = nil
     Potential_Unlocks = {
         "frag_grenade", "shotgun_weapon", "sniper_weapon", "burst_weapon", "shotgun_turret", "sniper_turret",
-        "ice_turret", "molotov", "rifle_turret_3",
+        "ice_turret", "molotov", "rifle_turret_2",
     }
     Potential_Mutations = {
         "sprinter_1", "shambler_2", "boomer_1", "conjoined_1"
     }
-    -- Potential_Mutations = shuffle(Potential_Mutations)
-    -- Potential_Unlocks = shuffle(Potential_Unlocks)
+    Potential_Mutations = shuffle(Potential_Mutations)
+    Potential_Unlocks = shuffle(Potential_Unlocks)
     Next_Is_Unlock = true
     Choice_1 = nil
     Choice_2 = nil
@@ -112,7 +119,8 @@ local function reset()
     Discovered_Grenades = {}
     Grenade_Inventory = {}
     Grenades = {}
-    Grenade_Slots = 1
+    Wall_Damage = 0
+    Repair_Cost = 0
     for i = 1, 20 do
         Walls[i] = 100
     end
@@ -134,6 +142,13 @@ end
 local function conditional_screen_shake(time, intensity)
     if Screen_Shake then
         effect.screen_shake(time, intensity)
+    end
+end
+
+local function calculate_repair_cost()
+    Repair_Cost = math.floor(Wall_Damage / 20)
+    if Repair_Cost ~= 0 and Repair_Cost < 1 then
+        Repair_Cost = 1
     end
 end
 
@@ -402,12 +417,19 @@ local function damage_player(damage)
     Player.last_health = Player.health
     Player.health -= damage
     Player.last_hit = usagi.elapsed
-    conditional_screen_shake(0.25, damage * 0.1)
-    local hp_percent = 64 * Player.health / PLAYER_HEALTH
+    local hp_percent = 64 * Player.health / Player_Health
     dandelion.health_bar_hit(4 + hp_percent, 168, { length = 4 * (Player.last_health - Player.health) })
     dandelion.player_hit(Player.x + 8, Player.y)
     conditional_screen_shake(0.25, damage * 0.25)
     check_player_dead()
+end
+
+local function heal_player(health)
+    Player.last_health = Player.health
+    Player.health = math.min(Player_Health, Player.health + health)
+    Player.last_hit = usagi.elapsed
+    local hp_percent = 64 * Player.health / Player_Health
+    dandelion.health_bar_heal(4 + hp_percent, 168, { length = 4 * (Player.last_health - Player.health) })
 end
 
 local function change_money(amount)
@@ -557,22 +579,29 @@ local function do_zombies()
                     end
                     zombie.last_move = elapsed - zombie.move_delay / 2
                 else
+                    -- hit walls
                     local wall1, wall2 = blocked_by_wall(zombie.x + ZOMBIE_W_ADJUST, zombie.y + ZOMBIE_H_ADJUST,
                         ZOMBIE_W_ADJUST, ZOMBIE_H_ADJUST)
-                    if wall1 or wall2 and string.match(zombie.type, "boomer") then
+                    if (wall1 or wall2) and string.match(zombie.type, "boomer") then
                         boomer_explode(zombie)
                         if wall1 then
+                            Wall_Damage += Walls[wall1]
                             Walls[wall1] = 0
+                            dandelion.hit_wall((wall1 - 1) * 16 + 8, 140)
                         end
                         if wall2 then
+                            Wall_Damage += Walls[wall2]
                             Walls[wall2] = 0
+                            dandelion.hit_wall((wall2 - 1) * 16 + 8, 140)
                         end
                     end
                     if wall1 then
+                        Wall_Damage += math.min(zombie.damage, Walls[wall1])
                         Walls[wall1] = math.max(0, Walls[wall1] - zombie.damage)
                         dandelion.hit_wall((wall1 - 1) * 16 + 8, 140)
                     end
                     if wall2 and wall1 ~= wall2 then
+                        Wall_Damage += math.min(zombie.damage, Walls[wall2])
                         Walls[wall2] = math.max(0, Walls[wall2] - zombie.damage)
                         dandelion.hit_wall((wall2 - 1) * 16 + 8, 140)
                     end
@@ -584,6 +613,7 @@ local function do_zombies()
                             zombie.x = zombie.flip and (usagi.GAME_W + ZOMBIE_W_ADJUST * 3) or (ZOMBIE_W_ADJUST * -2)
                         end
                     else
+                        calculate_repair_cost()
                         conditional_screen_shake(0.25, zombie.damage * 0.025)
                     end
                     zombie.last_move = elapsed
@@ -659,8 +689,18 @@ local function next_day()
     end
     Transition_Started = usagi.elapsed
 
+    Player.health = Player_Health
+
     if (Day - 3) % 4 == 0 then
-        -- choose upgrade
+        local first = math.random(1, #UPGRADES)
+        local second = first
+        while second == first do
+            second = math.random(1, #UPGRADES)
+        end
+
+        Choice_1 = UNLOCKS[first]
+        Choice_2 = UNLOCKS[second]
+        Choice_Type = "upgrade"
     else
         if Next_Is_Unlock then
             Choice_1 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
@@ -849,6 +889,11 @@ function _update(dt)
         do_waves()
         do_turrets()
         do_zombies()
+
+        if usagi.elapsed - Last_Regen > Regen_Timer then
+            Last_Regen = usagi.elapsed
+            heal_player(Health_Regen)
+        end
     end
     do_grenades()
 
@@ -872,7 +917,10 @@ function _update(dt)
     end
 
     if input.key_pressed(input.KEY_C) then
-        change_money(250)
+        damage_player(5)
+    end
+    if input.key_pressed(input.KEY_J) then
+        heal_player(5)
     end
 
     if input.key_pressed(input.KEY_U) then
@@ -985,6 +1033,20 @@ function _update(dt)
                         table.insert(Potential_Unlocks, math.random(1, math.floor(#Potential_Unlocks / 2) or 1),
                             choice.next)
                     end
+
+                    if Choice_Type == "upgrade" then
+                        if choice.id == "max_health" then
+                            Player_Health += 10
+                            Player.health += 10
+                        elseif choice.id == "health_regen" then
+                            Health_Regen += 1
+                        elseif choice.id == "income" then
+                            Income += 1
+                        elseif choice.id == "grenade_slot" then
+                            Grenade_Slots += 1
+                        end
+                    end
+
                     -- print(usagi.to_json(Potential_Unlocks))
                     Choice_1 = nil
                     Choice_2 = nil
@@ -1034,6 +1096,7 @@ function _update(dt)
                     Selected_Turret = nil
                 elseif Highlighted_Turret ~= nil then
                     Selected_Turret = Highlighted_Turret
+                    Last_Selected_Turret = Selected_Turret
                     Drawer = true
                     Drawer_Type = "turret"
                     fill_drawer_items()
@@ -1076,17 +1139,28 @@ function _update(dt)
                 elseif Highlighted_Tab then
                     Drawer_Type = Highlighted_Tab
                     if Highlighted_Tab == "turret" then
-                        Selected_Turret = 1
+                        Selected_Turret = Last_Selected_Turret
                     else
                         Selected_Turret = nil
                     end
                     fill_drawer_items()
                 end
             end
+            if not Choice_1 and Repair_Cost > 0 and Money >= Repair_Cost and input.key_pressed(input.KEY_G) then
+                for i, v in pairs(Walls) do
+                    if v < 100 then
+                        Walls[i] = 100
+                        dandelion.hit_wall((i - 1) * 16 + 8, 160)
+                    end
+                end
+                change_money(-Repair_Cost)
+                Repair_Cost = 0
+                Wall_Damage = 0
+            end
         end
     end
 
-    if input.key_pressed(input.KEY_SPACE) and Is_Night == false and not Choice_1 and Player.x < 10 then
+    if input.key_pressed(input.KEY_SPACE) and not Is_Night and not Choice_1 and Player.x < 10 then
         Drawer = false
         Selected_Turret = nil
         Highlighted_Turret = nil
@@ -1211,15 +1285,18 @@ local function draw_hud()
     end
 
     -- Health bar
-    local hp_percent = Player.health / PLAYER_HEALTH
-    local last_hp_percent = 64 * (Player.last_health - Player.health) / PLAYER_HEALTH
+    local hp_percent = Player.health / Player_Health
+    local last_hp_percent = 64 * (Player.last_health - Player.health) / Player_Health
     -- local hp_color = usagi.elapsed - Player.last_hit > 0.125 and gfx.COLOR_RED or gfx.COLOR_WHITE
-    local max = 4 + 3 * PLAYER_HEALTH
+    local max = 4 + 3 * Player_Health
     gfx.rect_fill(4, 168, max, 10, gfx.COLOR_DARK_PURPLE)
     gfx.rect_fill(4, 168, hp_percent * max, 9, gfx.COLOR_RED)
     if usagi.elapsed - Player.last_hit < 0.25 then
-        gfx.rect_fill(4 + hp_percent * max, 168, last_hp_percent, 9,
-            gfx.COLOR_WHITE)
+        if last_hp_percent > 0 then
+            gfx.rect_fill(4 + hp_percent * max, 168, last_hp_percent, 9, gfx.COLOR_WHITE)
+        else
+            gfx.rect_fill(4 + hp_percent * max + last_hp_percent, 168, last_hp_percent * -1, 9, gfx.COLOR_WHITE)
+        end
     end
 
     -- Money and days
@@ -1233,6 +1310,14 @@ local function draw_hud()
     local counter = day_night .. Day .. "/31"
     local counter_size = #counter * 6
     text_with_shadow(counter, 316 - counter_size, 165, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
+
+    -- Repair wall prompt
+    if not Choice_1 and not Is_Night and Repair_Cost > 0 and Money >= Repair_Cost then
+        local cost_text = "($" .. Repair_Cost .. ")"
+        local repair_text = "Repair Walls [G]"
+        text_with_shadow(cost_text, 108 - #cost_text * 3.5, 154, gfx.COLOR_YELLOW, gfx.COLOR_BROWN)
+        text_with_shadow(repair_text, 164 - (#repair_text - #cost_text) * 3.5, 154, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
+    end
 end
 
 local function draw_turrets()
@@ -1507,7 +1592,7 @@ local function draw_choices()
 end
 
 local function draw_grenade_inventory()
-    local offset = 3 * PLAYER_HEALTH
+    local offset = 3 * Player_Health
 
     for _, grenade in pairs(Grenade_Inventory) do
         offset += 10
@@ -1549,11 +1634,12 @@ function _draw(dt)
     dandelion.Draw()
 
     -- night time tint
+    local max = Weather == "rain" and 0.3 or 0
     if Is_Night then
-        local alpha = math.min((usagi.elapsed - Transition_Started), 0.6)
+        local alpha = math.min(max + (usagi.elapsed - Transition_Started), 0.6 + max / 2)
         gfx.sspr_ex(496, 496, 16, 16, 0, 0, 320, 180, false, false, 0, gfx.COLOR_DARK_BLUE, alpha)
     else
-        local alpha = math.max(0.6 - (usagi.elapsed - Transition_Started), 0)
+        local alpha = math.max(0.6 - (usagi.elapsed - Transition_Started), max)
         gfx.sspr_ex(496, 496, 16, 16, 0, 0, 320, 180, false, false, 0, gfx.COLOR_DARK_BLUE, alpha)
     end
 

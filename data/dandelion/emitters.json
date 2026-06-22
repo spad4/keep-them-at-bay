@@ -205,6 +205,24 @@
         ]
     },
     {
+        "name": "health_bar_heal",
+        "duration": 0,
+        "dy": 8,
+        "particles": [
+            {
+                "name": "heal_chunk_triangle",
+                "count": 16,
+                "shape": "line",
+                "config": {
+                    "length": "self.length or 12",
+                    "thickness": 16,
+                    "motion": 16,
+                    "direction": 1
+                }
+            }
+        ]
+    },
+    {
         "name": "player_die",
         "duration": 0,
         "particles": [
