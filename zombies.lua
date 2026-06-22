@@ -141,7 +141,7 @@ return {
         weight = 10,
         cost = 2,
         spread_x = 250,
-        spread_y = 60
+        spread_y = 100
     },
     ["boomer_2"] = {
         name = "BOOMER",
@@ -159,9 +159,9 @@ return {
         previous = "boomer_1",
         next = "boomer_3",
         weight = 15,
-        cost = 2,
+        cost = 3,
         spread_x = 250,
-        spread_y = 60
+        spread_y = 100
     },
     ["boomer_3"] = {
         name = "BOOMER",
@@ -179,9 +179,9 @@ return {
         previous = "boomer_2",
         next = nil,
         weight = 20,
-        cost = 2,
+        cost = 3,
         spread_x = 250,
-        spread_y = 60
+        spread_y = 100
     },
 
 

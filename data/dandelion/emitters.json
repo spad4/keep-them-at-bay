@@ -37,6 +37,21 @@
         ]
     },
     {
+        "name": "break_wall",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "wall_chunk",
+                "count": 32,
+                "shape": "rectangle",
+                "config": {
+                    "width": 16,
+                    "height": 32
+                }
+            }
+        ]
+    },
+    {
         "name": "construction",
         "duration": 0,
         "particles": [
@@ -123,49 +138,41 @@
             {
                 "name": "blood_chunk_triangle",
                 "count": 3,
-                "shape": "line",
+                "shape": "circle",
                 "config": {
-                    "length": 12,
-                    "thickness": 6,
-                    "centered": true,
+                    "radius": 8,
                     "rotation": 0.5,
-                    "motion": 12
+                    "motion": 48
                 }
             },
             {
                 "name": "flesh_chunk_triangle",
                 "count": 3,
-                "shape": "line",
+                "shape": "circle",
                 "config": {
-                    "length": 12,
-                    "thickness": 6,
-                    "centered": true,
+                    "radius": 8,
                     "rotation": 0.5,
-                    "motion": 12
+                    "motion": 48
                 }
             },
             {
                 "name": "blood_chunk_circle",
                 "count": 3,
-                "shape": "line",
+                "shape": "circle",
                 "config": {
-                    "length": 12,
-                    "thickness": 6,
-                    "centered": true,
+                    "radius": 8,
                     "rotation": 0.5,
-                    "motion": 12
+                    "motion": 48
                 }
             },
             {
                 "name": "flesh_chunk_circle",
                 "count": 3,
-                "shape": "line",
+                "shape": "circle",
                 "config": {
-                    "length": 12,
-                    "thickness": 6,
-                    "centered": true,
+                    "radius": 8,
                     "rotation": 0.5,
-                    "motion": 12
+                    "motion": 48
                 }
             }
         ]
@@ -259,6 +266,60 @@
                 "config": {
                     "width": 400,
                     "height": 400
+                }
+            }
+        ]
+    },
+    {
+        "name": "sniper_smoke_emitter",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "sniper_smoke",
+                "count": 6,
+                "frequency": 1,
+                "shape": "circle",
+                "config": {
+                    "radius": 4,
+                    "motion": 16
+                }
+            }
+        ]
+    },
+    {
+        "name": "bullet_sparks_emitter",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "bullet_sparks",
+                "count": 5,
+                "frequency": 1,
+                "shape": "circle",
+                "config": {
+                    "radius": 1,
+                    "motion": 96,
+                    "distribution": "even",
+                    "outline": true,
+                    "rotation": "self.rotation+1.5 or 0"
+                }
+            }
+        ]
+    },
+    {
+        "name": "ice_turret_blast",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "ice_blast",
+                "count": 1,
+                "frequency": 1,
+                "shape": "circle",
+                "config": {
+                    "radius": 1,
+                    "motion": 64,
+                    "distribution": "even",
+                    "outline": true,
+                    "rotation": "self.rotation+1 or 0"
                 }
             }
         ]

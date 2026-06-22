@@ -12,6 +12,7 @@ ZOMBIE_SPEED = 2
 ZOMBIE_W_ADJUST = 5
 ZOMBIE_H_ADJUST = 6
 WALL_START = 140
+CHILL_DURATION = 2
 
 BULLETS = {
     ["rifle"] = {
@@ -20,7 +21,17 @@ BULLETS = {
         spr_y = 177,
         spr_w = 1,
         spr_h = 8,
-        particle = "rifle_casing"
+        particle = "rifle_casing",
+        thickness = 1
+    },
+    ["sniper"] = {
+        name = "sniper",
+        spr_x = 321,
+        spr_y = 177,
+        spr_w = 1,
+        spr_h = 8,
+        particle = "sniper_casing",
+        thickness = 1
     },
     ["shell"] = {
         name = "shell",
@@ -28,7 +39,17 @@ BULLETS = {
         spr_y = 177,
         spr_w = 2,
         spr_h = 8,
-        particle = "shell_casing"
+        particle = "shell_casing",
+        thickness = 2
+    },
+    ["ice"] = {
+        name = "ice",
+        spr_x = 323,
+        spr_y = 177,
+        spr_w = 2,
+        spr_h = 8,
+        particle = "small_smoke",
+        thickness = 2
     }
 }
 
@@ -75,9 +96,15 @@ local function reset()
     Reloading = false
     Reload_Start = 0
     Walls = {}
+    Wall_Flipped = {}
     Turrets = {}
-    Discovered_Turrets = { "rifle_turret_1" }
-    Discovered_Turret_Upgrades = {}
+    Discovered_Turrets = { "rifle_turret_1", "sniper_turret_1", "shotgun_turret_1", "ice_turret_1" }
+    Discovered_Turret_Upgrades = {
+        ["sniper_turret_2"] = true,
+        ["sniper_turret_3"] = true,
+        ["ice_turret_2"] = true,
+        ["ice_turret_3"] = true
+    }
     Highlighted_Turret = nil
     Selected_Turret = nil
     Last_Selected_Turret = 1
@@ -98,8 +125,8 @@ local function reset()
     Highlighted_Drawer_Item = nil
     Highlighted_Tab = nil
     Potential_Unlocks = {
-        "frag_grenade", "shotgun_weapon", "sniper_weapon", "burst_weapon", "shotgun_turret", "sniper_turret",
-        "ice_turret", "molotov", "rifle_turret_2",
+        "shotgun_weapon", "sniper_weapon", "burst_weapon", "shotgun_turret_1",
+        "sniper_turret_1", "ice_turret_1"
     }
     Potential_Mutations = {
         "sprinter_1", "shambler_2", "boomer_1", "conjoined_1"
@@ -116,23 +143,25 @@ local function reset()
     Discovered_Weapons = {
         ["rifle_weapon"] = true
     }
-    Discovered_Grenades = {}
+    Discovered_Grenades = { ["frag_grenade"] = false }
     Grenade_Inventory = {}
     Grenades = {}
     Wall_Damage = 0
     Repair_Cost = 0
     for i = 1, 20 do
         Walls[i] = 100
+        Wall_Flipped[i] = math.random() > 0.5
     end
     for i = 1, 16 do
         Turrets[i] = false
     end
     dandelion.ClearAll()
     gfx.shader_set(nil)
-    effect.flash(3, gfx.COLOR_BLACK)
+    effect.flash(2, gfx.COLOR_BLACK)
 end
 
 function _init()
+    Attempts = 1
     reset()
     Screen_Shake = true
     dandelion.ClearAll()
@@ -179,6 +208,7 @@ local function spawn_zombie(type, x, y, on_wall)
     new_zombie.damage = model.damage
     new_zombie.variant = math.random(0, model.variants - 1)
     new_zombie.on_wall = on_wall
+    new_zombie.chill_time = 0
     table.insert(Zombies, new_zombie)
 end
 
@@ -402,6 +432,7 @@ local function game_over_sequence()
     end
 
     if input.key_pressed(input.KEY_SPACE) then
+        Attempts += 1
         reset()
     end
 end
@@ -453,7 +484,7 @@ local function get_nearest_in_range(range)
     local closest_distance = 9999
     local closest_index = 0
     for _, zombie in pairs(Zombies) do
-        if zombie.y <= WALL_START - 40 and not zombie.on_wall then -- zombies past the wall cannot be shot
+        if zombie.y <= WALL_START - 40 and zombie.y > -10 and not zombie.on_wall then -- zombies past the wall cannot be shot
             local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
             if util.circ_rect_overlap(range, rect) then
                 table.insert(can_hit, zombie)
@@ -475,7 +506,7 @@ end
 local function get_all_in_range(range, wall_allowed)
     local can_hit = {}
     for _, zombie in pairs(Zombies) do
-        if zombie.y <= WALL_START - 40 and (wall_allowed and true or not zombie.on_wall) then -- zombies past the wall cannot be shot
+        if wall_allowed or (zombie.y <= WALL_START - 40 and not zombie.on_wall) then -- zombies past the wall cannot be shot
             local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
             if util.circ_rect_overlap(range, rect) then
                 table.insert(can_hit, zombie)
@@ -483,7 +514,7 @@ local function get_all_in_range(range, wall_allowed)
         end
     end
 
-    if #can_hit == 0 then return nil end
+    if #can_hit == 0 then return {} end
 
     return can_hit
 end
@@ -525,7 +556,6 @@ local function do_zombies()
             dandelion.zombie_die(zombie.x + ZOMBIE_W_ADJUST + 4, zombie.y + ZOMBIE_H_ADJUST)
             Zombies_Killed += 1
             change_money(zombie.money + Income)
-            table.remove(Zombies, i)
 
             if string.match(zombie.type, "conjoined") then
                 for _ = 1, zombie.count do
@@ -538,20 +568,21 @@ local function do_zombies()
             elseif string.match(zombie.type, "boomer") then
                 boomer_explode(zombie)
             end
+            table.remove(Zombies, i)
         else
             local elapsed = usagi.elapsed
 
             if zombie.kb_x ~= 0 then -- weapon stun
                 local direction = zombie.kb_x > 0 and 1 or -1
                 local amount = math.sqrt(math.abs(zombie.kb_x))
-                zombie.kb_x = util.approach(zombie.kb_x, 0, amount)
+                zombie.kb_x = util.approach(zombie.kb_x, 0, amount * 4)
                 zombie.x = util.clamp(zombie.x + direction * amount, -6, usagi.GAME_W - ZOMBIE_W_ADJUST * 2)
                 zombie.last_move = elapsed - zombie.move_delay * 0.5
             end
             if zombie.kb_y ~= 0 then -- weapon stun
                 local direction = zombie.kb_y > 0 and 1 or -1
                 local amount = math.sqrt(math.abs(zombie.kb_y))
-                zombie.kb_y = util.approach(zombie.kb_y, 0, amount)
+                zombie.kb_y = util.approach(zombie.kb_y, 0, amount * 4)
                 zombie.y += amount * direction
                 zombie.last_move = elapsed - zombie.move_delay * 0.5
             end
@@ -581,6 +612,7 @@ local function do_zombies()
                     zombie.last_move = elapsed - zombie.move_delay / 2
                 else
                     -- hit walls
+                    local shook_screen = false
                     local wall1, wall2 = blocked_by_wall(zombie.x + ZOMBIE_W_ADJUST, zombie.y + ZOMBIE_H_ADJUST,
                         ZOMBIE_W_ADJUST, ZOMBIE_H_ADJUST)
                     if (wall1 or wall2) and string.match(zombie.type, "boomer") then
@@ -588,23 +620,43 @@ local function do_zombies()
                         if wall1 then
                             Wall_Damage += Walls[wall1]
                             Walls[wall1] = 0
-                            dandelion.hit_wall((wall1 - 1) * 16 + 8, 140)
+                            dandelion.hit_wall((wall1 - 1) * 16 + 8, 160)
+                            if Walls[wall1] == 0 then
+                                conditional_screen_shake(0.5, 0.75)
+                                shook_screen = true
+                                dandelion.break_wall((wall1 - 1) * 16 + 8, 160)
+                            end
                         end
                         if wall2 then
                             Wall_Damage += Walls[wall2]
                             Walls[wall2] = 0
-                            dandelion.hit_wall((wall2 - 1) * 16 + 8, 140)
+                            dandelion.hit_wall((wall2 - 1) * 16 + 8, 160)
+                            if Walls[wall2] == 0 then
+                                conditional_screen_shake(0.5, 0.75)
+                                shook_screen = true
+                                dandelion.break_wall((wall2 - 1) * 16 + 8, 160)
+                            end
                         end
                     end
                     if wall1 then
                         Wall_Damage += math.min(zombie.damage, Walls[wall1])
                         Walls[wall1] = math.max(0, Walls[wall1] - zombie.damage)
-                        dandelion.hit_wall((wall1 - 1) * 16 + 8, 140)
+                        dandelion.hit_wall((wall1 - 1) * 16 + 8, 160)
+                        if Walls[wall1] == 0 then
+                            conditional_screen_shake(0.5, 0.75)
+                                shook_screen = true
+                            dandelion.break_wall((wall1 - 1) * 16 + 8, 160)
+                        end
                     end
                     if wall2 and wall1 ~= wall2 then
                         Wall_Damage += math.min(zombie.damage, Walls[wall2])
                         Walls[wall2] = math.max(0, Walls[wall2] - zombie.damage)
                         dandelion.hit_wall((wall2 - 1) * 16 + 8, 140)
+                        if Walls[wall2] == 0 then
+                            conditional_screen_shake(0.5, 0.75)
+                                shook_screen = true
+                            dandelion.break_wall((wall2 - 1) * 16 + 8, 140)
+                        end
                     end
                     if not wall1 and not wall2 then
                         zombie.y += ZOMBIE_SPEED
@@ -615,9 +667,14 @@ local function do_zombies()
                         end
                     else
                         calculate_repair_cost()
-                        conditional_screen_shake(0.25, zombie.damage * 0.025)
+                        if not shook_screen then
+                            conditional_screen_shake(0.25, 0.15)
+                        end
                     end
                     zombie.last_move = elapsed
+                    if (usagi.elapsed - zombie.chill_time < CHILL_DURATION) then
+                        zombie.last_move += zombie.move_delay * 1.5
+                    end
                 end
                 zombie.moved = true
                 zombie.current_frame = util.wrap(zombie.current_frame + 1, 0, 2)
@@ -713,11 +770,11 @@ local function next_day()
         Choice_Type = "upgrade"
     else
         if Next_Is_Unlock then
-            Choice_1 = UNLOCKS[table.remove(Potential_Unlocks, 2)]
+            Choice_1 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
             Choice_2 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
             Choice_Type = "unlock"
         else
-            local f = table.remove(Potential_Mutations, 2)
+            local f = table.remove(Potential_Mutations, 1)
             local s = table.remove(Potential_Mutations, 1)
             Choice_1 = ZOMBIES[f]
             Choice_1.id = f
@@ -763,6 +820,18 @@ local function next_upgrade(id)
     return nil
 end
 
+local function insert_drawer_by_order(item)
+    local order = item.order or 1
+    for i, v in pairs(Drawer_Items) do
+        local v_order = v.order or 1
+        if v_order > order then
+            table.insert(Drawer_Items, i, item)
+            return
+        end
+    end
+    table.insert(Drawer_Items, item)
+end
+
 local function fill_drawer_items()
     Drawer_Items = {}
     if Drawer_Type == "turret" then
@@ -771,21 +840,21 @@ local function fill_drawer_items()
         -- empty turret slot
         if not selected then
             for _, name in pairs(Discovered_Turrets) do
-                table.insert(Drawer_Items, TURRETS[name])
+                insert_drawer_by_order(TURRETS[name])
             end
         else -- check for upgrades
             local id = next_upgrade(selected.id)
             if id then
-                table.insert(Drawer_Items, TURRETS[id])
+                insert_drawer_by_order(TURRETS[id])
             end
         end
     elseif Drawer_Type == "weapon" then
         for id, _ in pairs(Discovered_Weapons) do
-            table.insert(Drawer_Items, WEAPONS[id])
+            insert_drawer_by_order(WEAPONS[id])
         end
     elseif Drawer_Type == "grenade" then
         for id, _ in pairs(Discovered_Grenades) do
-            table.insert(Drawer_Items, GRENADES[id])
+            insert_drawer_by_order(GRENADES[id])
         end
     end
 end
@@ -806,10 +875,10 @@ local function do_turrets()
         local angle = dx > 0 and theta or (math.pi - theta)
         turret.angle = angle
 
-        local vec = util.vec_from_angle(angle, 24)
+        local vec = util.vec_from_angle(angle, 22)
         local adjusted_spread = turret.spread * 0.01
 
-        for j = 1, turret.count do
+        for _ = 1, turret.count do
             local spread = math.random() * adjusted_spread - adjusted_spread / 2
 
             -- calculates the hitbox of the bullet
@@ -817,9 +886,9 @@ local function do_turrets()
             local spread_vec = util.vec_from_angle(angle + spread, 500)
             local end_x, end_y = start_x + spread_vec.x, start_y + spread_vec.y
 
-            local zombie, distance = hit_zombie(start_x, start_y, end_x, end_y)
-            if zombie then
-                if turret.bullet == "rifle" then
+            if turret.bullet == "rifle" or turret.bullet == "shell" or turret.bullet == "sniper" then
+                local zombie, distance = hit_zombie(start_x, start_y, end_x, end_y)
+                if zombie then
                     zombie.health -= turret.damage
 
                     -- knockback
@@ -827,17 +896,33 @@ local function do_turrets()
                     local kb_x = math.floor(vec.x * scaled_damage)
                     local kb_y = math.floor(vec.y * scaled_damage)
                     apply_knockback_zombie(zombie, kb_x, kb_y)
+                    dandelion.zombie_spray(start_x + math.cos(angle + spread) * distance,
+                        start_y + math.sin(angle + spread) * distance, { spray_x = vec.x / 4, spray_y = vec.y / 4 })
+                    dandelion.hitscan_bullet(start_x, start_y,
+                        { ["config"] = { length = distance, rotation = angle + spread, thickness = BULLETS[turret.bullet].thickness } })
+                else
+                    dandelion.hitscan_bullet(start_x, start_y,
+                        { ["config"] = { length = 1000, rotation = angle + spread, thickness = BULLETS[turret.bullet].thickness } })
                 end
 
-                dandelion.zombie_spray(start_x + math.cos(angle + spread) * distance,
-                    start_y + math.sin(angle + spread) * distance, { spray_x = vec.x / 4, spray_y = vec.y / 4 })
-                dandelion.hitscan_bullet(start_x, start_y,
-                    { ["config"] = { length = distance, rotation = angle + spread, thickness = 1 } })
-            else
-                dandelion.hitscan_bullet(start_x, start_y,
-                    { ["config"] = { length = 1000, rotation = angle + spread, thickness = 1 } })
+                if turret.bullet == "sniper" or turret.bullet == "shell" then
+                    dandelion.sniper_smoke_emitter(start_x, start_y)
+                    dandelion.bullet_sparks_emitter(start_x, start_y, { rotation = (angle + spread) / math.pi })
+                end
+                dandelion.small_smoke(start_x, start_y)
+            elseif turret.bullet == "ice" then
+                local targets = get_all_in_range({
+                    x = z.x + ZOMBIE_W_ADJUST,
+                    y = z.y + ZOMBIE_H_ADJUST,
+                    r = turret
+                        .radius
+                })
+
+                for j, t in pairs(targets) do
+                    t.chill_time = usagi.elapsed
+                end
+                dandelion.ice_turret_blast(start_x, start_y, { rotation = (angle + spread) / math.pi })
             end
-            dandelion.small_smoke(start_x, start_y)
         end
 
         dandelion[BULLETS[turret.bullet].particle](range.x, range.y, { flip = Player.flip and 1 or -1 })
@@ -923,7 +1008,7 @@ function _update(dt)
     end
 
     if input.key_held(input.KEY_H) then
-        spawn_zombie("shambler_1", 60, 0)
+        spawn_zombie("sprinter_3", 160, 0)
     end
 
     if input.key_pressed(input.KEY_C) then
@@ -958,27 +1043,26 @@ function _update(dt)
 
     Player.moving = should_move
 
-    if input.key_pressed(input.KEY_G) and #Grenade_Inventory > 0 then
-        local model = table.remove(Grenade_Inventory)
-        local grenade = {}
-        for k, v in pairs(model) do
-            grenade[k] = v
-        end
-        grenade.born = usagi.elapsed
-        grenade.age = 0
-        grenade.x = Player.x + 5
-        grenade.y = Player.y + 7
-        grenade.cx = Player.x + 5
-        grenade.cy = Player.y + 7
-        grenade.dx = mx
-        grenade.dy = my
-        grenade.duration = h / 200
-        grenade.scale = 0
-        grenade.random = math.random()
-        table.insert(Grenades, grenade)
-    end
-
     if Is_Night then
+        if input.key_pressed(input.KEY_G) and #Grenade_Inventory > 0 then
+            local model = table.remove(Grenade_Inventory)
+            local grenade = {}
+            for k, v in pairs(model) do
+                grenade[k] = v
+            end
+            grenade.born = usagi.elapsed
+            grenade.age = 0
+            grenade.x = Player.x + 5
+            grenade.y = Player.y + 7
+            grenade.cx = Player.x + 5
+            grenade.cy = Player.y + 7
+            grenade.dx = mx
+            grenade.dy = my
+            grenade.duration = h / 200
+            grenade.scale = 0
+            grenade.random = math.random()
+            table.insert(Grenades, grenade)
+        end
         if input.mouse_held(input.MOUSE_LEFT) then
             if usagi.elapsed - Fire_Cooldown > Weapon.fire_rate then
                 if Ammo > 0 then
@@ -1101,7 +1185,7 @@ function _update(dt)
             end
 
             if input.mouse_pressed(input.MOUSE_LEFT) then
-                if my < 120 then
+                if my < 117 then
                     Drawer = false
                     Selected_Turret = nil
                 elseif Highlighted_Turret ~= nil then
@@ -1164,6 +1248,7 @@ function _update(dt)
                     end
                 end
                 change_money(-Repair_Cost)
+                conditional_screen_shake(0.5, 0.75)
                 Repair_Cost = 0
                 Wall_Damage = 0
             end
@@ -1190,10 +1275,11 @@ local function draw_zombies()
         if zombie.on_wall then
             table.insert(WallZombies, zombie)
         elseif zombie.moved then
+            local tint = (usagi.elapsed - zombie.chill_time < CHILL_DURATION) and gfx.COLOR_BLUE or gfx.COLOR_TRUE_WHITE
             gfx.sspr_ex(zombie.spr_x + zombie.variant * H_SIZE, zombie.spr_y + zombie.current_frame * H_SIZE, H_SIZE,
                 H_SIZE, zombie.x, zombie.y, H_SIZE, H_SIZE,
                 zombie.flip,
-                false, 0, gfx.COLOR_TRUE_WHITE, 1)
+                false, 0, tint, 1)
         end
     end
 end
@@ -1337,7 +1423,8 @@ local function draw_turrets()
 
             local recoil = util.vec_from_angle(turret.angle, 1)
             local angle = turret.angle + 0.5 * math.pi
-            local m = (usagi.elapsed - turret.cooldown < 0.05 and -1 or 0) * turret.recoil
+            local amount = 1 - (usagi.elapsed - turret.cooldown) / 0.05
+            local m = (usagi.elapsed - turret.cooldown < 0.05 and -amount or 0) * turret.recoil
 
             -- barrel
             local height = 118
@@ -1371,21 +1458,14 @@ local function draw_turret_outlines()
     end
 end
 
-local function draw_rampart()
-    for i = 1, #Walls do
-        local offset = Walls[i] > 0 and 0 or 1
-        gfx.sspr(offset * H_SIZE, 208, H_SIZE, H_SIZE, (i - 1) * H_SIZE, 135)
-    end
-end
-
 local function draw_walls()
     for i = 1, #Walls do
         local offset = util.round(6 - (Walls[i] + 11) / 20)
         if Walls[i] == 0 then
             offset = 6
         end
-        gfx.sspr(offset * H_SIZE, 224, H_SIZE, H_SIZE, (i - 1) * H_SIZE, 148)
-        gfx.sspr(offset * H_SIZE, 240, H_SIZE, H_SIZE, (i - 1) * H_SIZE, 164)
+        gfx.sspr_ex(offset * H_SIZE, 224, H_SIZE, H_SIZE, (i - 1) * H_SIZE, 148, H_SIZE, H_SIZE, Wall_Flipped[i], false, 0, gfx.COLOR_TRUE_WHITE, 1)
+        gfx.sspr_ex(offset * H_SIZE, 240, H_SIZE, H_SIZE, (i - 1) * H_SIZE, 164, H_SIZE, H_SIZE, Wall_Flipped[i], false, 0, gfx.COLOR_TRUE_WHITE, 1)
     end
 end
 
@@ -1531,7 +1611,7 @@ local function draw_choices()
     local color = gfx.COLOR_TRUE_WHITE
     local shadow = gfx.COLOR_INDIGO
     if Choice_Type == "unlock" then
-        text_1 = "Continue your research."
+        text_1 = "Your technology advances."
         text_2 = "Add one to your shop."
     elseif Choice_Type == "mutation" then
         text_1 = "The horde evolves."
@@ -1611,6 +1691,7 @@ local function draw_grenade_inventory()
 
     if Is_Night and #Grenade_Inventory > 0 then
         gfx.sspr(304, 192, 16, 16, offset, 168)
+        text_with_shadow("[G]", offset + 12, 166, gfx.COLOR_WHITE, gfx.COLOR_DARK_GRAY)
     end
 end
 
@@ -1632,8 +1713,10 @@ function _draw(dt)
     end
     draw_zombies()
     draw_turrets()
-    draw_rampart()
-    gfx.spr(513, 0, 137)
+
+    -- ramparts
+    gfx.sspr(0, 208, 320, 16, 0, 135)
+
     draw_wall_zombies()
     if not Game_Over then
         draw_player()

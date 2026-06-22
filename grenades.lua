@@ -9,5 +9,6 @@ return {
         cost = 50,
         display_cost = "50",
         range = 50,
+        order = 1
     }
 }

@@ -17,34 +17,89 @@ return {
         class = "Weapon",
         description = "Rapid burst SMG.",
     },
-    ["shotgun_turret"] = {
-        id = "shotgun_turret",
+
+
+    ["rifle_turret_2"] = {
+        id = "rifle_turret_2",
+        name = "FOX Mk II",
+        class = "Upgrade",
+        description = "Higher range.",
+        next = "rifle_turret_3"
+    },
+    ["rifle_turret_3"] = {
+        id = "rifle_turret_3",
+        name = "FOX Mk III",
+        class = "Upgrade",
+        description = "Improved feed mechanism.",
+        next = "rifle_turret_4"
+    },
+
+
+    ["shotgun_turret_1"] = {
+        id = "shotgun_turret_1",
         name = "SLUG Mk. I",
         class = "Turret",
         description = "Close-range shotgun.",
         next = "shotgun_turret_2"
     },
     ["shotgun_turret_2"] = {
-        id = "rifle_turret_2",
+        id = "shotgun_turret_2",
         name = "SLUG Mk. II",
         class = "Upgrade",
-        description = "Improved feed mechanism.",
+        description = "Faster reload.",
         next = "shotgun_turret_3"
     },
-    ["sniper_turret"] = {
-        id = "sniper_turret",
+    ["shotgun_turret_3"] = {
+        id = "rifle_turret_3",
+        name = "SLUG Mk. III",
+        class = "Upgrade",
+        description = "Higher damage."
+    },
+
+
+    ["sniper_turret_1"] = {
+        id = "sniper_turret_1",
         name = "VIPER Mk. I",
         class = "Turret",
         description = "High-velocity sniper.",
         next = "sniper_turret_2"
     },
-    ["ice_turret"] = {
-        id = "ice_turret",
+    ["sniper_turret_2"] = {
+        id = "sniper_turret_2",
+        name = "VIPER Mk. I",
+        class = "Turret",
+        description = "Increased damage.",
+        next = "sniper_turret_3"
+    },
+    ["sniper_turret_3"] = {
+        id = "sniper_turret_3",
+        name = "VIPER Mk. III",
+        class = "Turret",
+        description = "Increased sensor range."
+    },
+
+
+    ["ice_turret_1"] = {
+        id = "ice_turret_1",
         name = "URSA Mk. I",
         class = "Turret",
         description = "Powerful blast chiller.",
         next = "ice_turret_2"
     },
+    ["ice_turret_2"] = {
+        id = "ice_turret_2",
+        name = "URSA Mk. I",
+        class = "Turret",
+        description = "Increased area of effect.",
+        next = "ice_turret_3"
+    },
+    ["ice_turret_3"] = {
+        id = "ice_turret_3",
+        name = "URSA Mk. I",
+        class = "Turret",
+        description = "Increased range."
+    },
+
     ["sawblade_turret"] = {
         id = "sawblade_turret",
         name = "SHARK Mk. I",
@@ -90,19 +145,5 @@ return {
         name = "GRAVITY",
         class = "Grenade",
         description = "Draws in undead.",
-    },
-    ["rifle_turret_2"] = {
-        id = "rifle_turret_2",
-        name = "FOX Mk II",
-        class = "Upgrade",
-        description = "Refined barrel rifling.",
-        next = "rifle_turret_3"
-    },
-    ["rifle_turret_3"] = {
-        id = "rifle_turret_3",
-        name = "FOX Mk III",
-        class = "Upgrade",
-        description = "Improved feed mechanism.",
-        next = "rifle_turret_4"
     }
 }
