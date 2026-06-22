@@ -1,23 +1,23 @@
 return {
-    ["max_health"] = {
+    max_health = {
         id = "max_health",
         name = "MAX HEALTH",
         class = "",
-        description = "+10 MAX HP",
+        description = "+5 MAX HP",
     },
-    ["health_regen"] = {
+    health_regen = {
         id = "health_regen",
         name = "HEALTH REGEN",
         class = "",
         description = "+1 HP / 10 sec",
     },
-    ["income"] = {
+    income = {
         id = "income",
-        name = "HEALTH REGEN",
+        name = "INCOME",
         class = "",
-        description = "+1 HP / 10 sec",
+        description = "+$1 per kill",
     },
-    ["grenade_slot"] = {
+    grenade_slot = {
         id = "grenade_slot",
         name = "GRENADE SLOT",
         class = "",

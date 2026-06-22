@@ -17,11 +17,11 @@ bool near(float a, float b) {
         return true;
     }
 
-    if (a > b && a - 0.005 < b) {
+    if (a > b && a - 0.0025 < b) {
         return true;
     }
     
-    if (b > a && b - 0.005 < a) {
+    if (b > a && b - 0.0025 < a) {
         return true;
     }
 

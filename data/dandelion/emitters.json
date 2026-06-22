@@ -191,9 +191,10 @@
     {
         "name": "health_bar_hit",
         "duration": 0,
+        "dy": 2,
         "particles": [
             {
-                "name": "blood_chunk_triangle",
+                "name": "hit_chunk_triangle",
                 "count": 16,
                 "shape": "line",
                 "config": {
@@ -207,7 +208,7 @@
     {
         "name": "health_bar_heal",
         "duration": 0,
-        "dy": 8,
+        "dy": 4,
         "particles": [
             {
                 "name": "heal_chunk_triangle",
@@ -216,7 +217,7 @@
                 "config": {
                     "length": "self.length or 12",
                     "thickness": 16,
-                    "motion": 16,
+                    "motion": 32,
                     "direction": 1
                 }
             }

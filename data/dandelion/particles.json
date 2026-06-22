@@ -282,8 +282,22 @@
         }
     },
     {
-        "name": "heal_chunk_triangle",
+        "name": "hit_chunk_triangle",
+        "emissive": true,
         "duration": "self.random_3 * 0.5 + 0.5",
+        "type": "triangle",
+        "color": "gfx.COLOR_RED",
+        "dx": "self.age * (self.random_1 * 40 -20)",
+        "dy": "(4*(self.age - 0.375) ^ 2) * (self.random_1 * 15 + 5)",
+        "config": {
+            "size": "(self.random_2 * 2 + 2) * (1 - self.age / self.duration)",
+            "rotation": "self.age * (self.random_1 * 2 - 1)"
+        }
+    },
+    {
+        "name": "heal_chunk_triangle",
+        "emissive": true,
+        "duration": "self.random_3 * 0.1 + 0.1",
         "type": "triangle",
         "color": "gfx.COLOR_RED",
         "config": {

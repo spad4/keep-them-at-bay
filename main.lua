@@ -48,6 +48,7 @@ end
 local function reset()
     Zombies = {}
     WallZombies = {}
+    Player_Health = 20
     Player = {
         x = 5,
         y = 134,
@@ -61,11 +62,10 @@ local function reset()
         kb = 0
     }
     Player_Skin = math.random(0, 3)
-    Player_Health = 20
-    Health_Regen = 1
+    Health_Regen = 0
     Income = 0
     Grenade_Slots = 1
-    Regen_Timer = 0
+    Regen_Timer = 10
     Last_Regen = 0
     Mouse_Angle = 0
     Mouse_Distance = 0
@@ -77,7 +77,7 @@ local function reset()
     Walls = {}
     Turrets = {}
     Discovered_Turrets = { "rifle_turret_1" }
-    Discovered_Upgrades = {}
+    Discovered_Turret_Upgrades = {}
     Highlighted_Turret = nil
     Selected_Turret = nil
     Last_Selected_Turret = 1
@@ -129,6 +129,7 @@ local function reset()
     end
     dandelion.ClearAll()
     gfx.shader_set(nil)
+    effect.flash(3, gfx.COLOR_BLACK)
 end
 
 function _init()
@@ -471,10 +472,10 @@ local function get_nearest_in_range(range)
     return can_hit[closest_index], closest_distance
 end
 
-local function get_all_in_range(range)
+local function get_all_in_range(range, wall_allowed)
     local can_hit = {}
     for _, zombie in pairs(Zombies) do
-        if zombie.y <= WALL_START - 40 and not zombie.on_wall then -- zombies past the wall cannot be shot
+        if zombie.y <= WALL_START - 40 and (wall_allowed and true or not zombie.on_wall) then -- zombies past the wall cannot be shot
             local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
             if util.circ_rect_overlap(range, rect) then
                 table.insert(can_hit, zombie)
@@ -492,7 +493,7 @@ local function boomer_explode(zombie)
     conditional_screen_shake(1, 2)
     dandelion.boomer_explode(zombie.x + ZOMBIE_W_ADJUST, zombie.y + ZOMBIE_H_ADJUST)
     local circle = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, r = 24 }
-    local targets = get_all_in_range(circle)
+    local targets = get_all_in_range(circle, zombie.on_wall)
     if zombie.on_wall and util.circ_rect_overlap(circle, { x = Player.x, y = Player.y, w = ZOMBIE_W_ADJUST, h = ZOMBIE_H_ADJUST }) then
         damage_player(50)
     end
@@ -523,7 +524,7 @@ local function do_zombies()
             -- zombie died
             dandelion.zombie_die(zombie.x + ZOMBIE_W_ADJUST + 4, zombie.y + ZOMBIE_H_ADJUST)
             Zombies_Killed += 1
-            change_money(zombie.money)
+            change_money(zombie.money + Income)
             table.remove(Zombies, i)
 
             if string.match(zombie.type, "conjoined") then
@@ -692,22 +693,31 @@ local function next_day()
     Player.health = Player_Health
 
     if (Day - 3) % 4 == 0 then
-        local first = math.random(1, #UPGRADES)
+        local first = math.random(1, 4)
         local second = first
         while second == first do
-            second = math.random(1, #UPGRADES)
+            second = math.random(1, 4)
         end
 
-        Choice_1 = UNLOCKS[first]
-        Choice_2 = UNLOCKS[second]
+        local i = 0
+        for k, v in pairs(UPGRADES) do
+            i += 1
+            if i == first then
+                Choice_1 = v
+            end
+            if i == second then
+                Choice_2 = v
+            end
+        end
+
         Choice_Type = "upgrade"
     else
         if Next_Is_Unlock then
-            Choice_1 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
+            Choice_1 = UNLOCKS[table.remove(Potential_Unlocks, 2)]
             Choice_2 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
             Choice_Type = "unlock"
         else
-            local f = table.remove(Potential_Mutations, 1)
+            local f = table.remove(Potential_Mutations, 2)
             local s = table.remove(Potential_Mutations, 1)
             Choice_1 = ZOMBIES[f]
             Choice_1.id = f
@@ -746,7 +756,7 @@ local function next_upgrade(id)
     if level then
         level += 1
         id = string.sub(id, 1, len - 1) .. level
-        if Discovered_Upgrades[id] then
+        if Discovered_Turret_Upgrades[id] then
             return id
         end
     end
@@ -853,7 +863,7 @@ local function do_grenades()
             if grenade.id == "frag_grenade" then
                 conditional_screen_shake(1, 2)
                 dandelion.frag_grenade(grenade.dx, grenade.dy)
-                local targets = get_all_in_range({ x = grenade.dx, y = grenade.dy, r = 32 })
+                local targets = get_all_in_range({ x = grenade.dx, y = grenade.dy, r = 32 }, true)
                 if targets then
                     for _, zombie in pairs(targets) do
                         local dx, dy = zombie.x + ZOMBIE_W_ADJUST - grenade.dx, zombie.y + ZOMBIE_H_ADJUST - grenade.dy
@@ -890,7 +900,7 @@ function _update(dt)
         do_turrets()
         do_zombies()
 
-        if usagi.elapsed - Last_Regen > Regen_Timer then
+        if (usagi.elapsed - Last_Regen > Regen_Timer) and Health_Regen > 0 and Player.health < Player_Health then
             Last_Regen = usagi.elapsed
             heal_player(Health_Regen)
         end
@@ -917,10 +927,11 @@ function _update(dt)
     end
 
     if input.key_pressed(input.KEY_C) then
-        damage_player(5)
+        -- damage_player(5)
+        change_money(250)
     end
     if input.key_pressed(input.KEY_J) then
-        heal_player(5)
+        -- heal_player(1)
     end
 
     if input.key_pressed(input.KEY_U) then
@@ -998,7 +1009,7 @@ function _update(dt)
                         table.insert(Discovered_Turrets, choice.id)
                     end
                     if choice.class == "Upgrade" then
-                        Discovered_Upgrades[choice.id] = true
+                        Discovered_Turret_Upgrades[choice.id] = true
                     end
                     if choice.class == "Weapon" then
                         Discovered_Weapons[choice.id] = false
@@ -1019,25 +1030,24 @@ function _update(dt)
                         if previous then
                             table.remove(Discovered_Mutations, previous)
                         end
-                        if choice.next then
+                        if choice.next and ZOMBIES[choice.next] then
                             table.insert(Potential_Mutations, math.random(1, math.floor(#Potential_Mutations / 2) or 1),
                                 choice.next)
                         end
-                        print(#Potential_Mutations)
-                    else
+                    elseif Choice_Type == "turret" then
                         -- discarded goes to back of line
                         table.insert(Potential_Unlocks, discarded.id)
-                    end
-                    -- next preferred upgrade is put somewhere in the front half
-                    if Choice_Type ~= "mutation" and choice.next then
-                        table.insert(Potential_Unlocks, math.random(1, math.floor(#Potential_Unlocks / 2) or 1),
-                            choice.next)
+                        -- next preferred upgrade is put somewhere in the front half
+                        if choice.next and UNLOCKS[choice.next] then
+                            table.insert(Potential_Unlocks, math.random(1, math.floor(#Potential_Unlocks / 2) or 1),
+                                choice.next)
+                        end
                     end
 
                     if Choice_Type == "upgrade" then
                         if choice.id == "max_health" then
-                            Player_Health += 10
-                            Player.health += 10
+                            Player_Health += 5
+                            Player.health += 5
                         elseif choice.id == "health_regen" then
                             Health_Regen += 1
                         elseif choice.id == "income" then
@@ -1643,10 +1653,9 @@ function _draw(dt)
         gfx.sspr_ex(496, 496, 16, 16, 0, 0, 320, 180, false, false, 0, gfx.COLOR_DARK_BLUE, alpha)
     end
 
-    dandelion.DrawEmissive()
-
     draw_grenade_inventory()
     draw_hud()
+    dandelion.DrawEmissive()
     if Drawer or Drawer_Height > 0 then
         draw_drawer()
     end

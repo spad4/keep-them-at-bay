@@ -91,6 +91,13 @@ return {
         class = "Grenade",
         description = "Draws in undead.",
     },
+    ["rifle_turret_2"] = {
+        id = "rifle_turret_2",
+        name = "FOX Mk II",
+        class = "Upgrade",
+        description = "Refined barrel rifling.",
+        next = "rifle_turret_3"
+    },
     ["rifle_turret_3"] = {
         id = "rifle_turret_3",
         name = "FOX Mk III",
