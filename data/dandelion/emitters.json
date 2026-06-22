@@ -85,8 +85,40 @@
         ]
     },
     {
-        "name": "zombie_die",
+        "name": "boomer_explode",
         "duration": 0,
+        "particles": [
+            {
+                "name": "explosion_smoke",
+                "count": 16,
+                "shape": "circle",
+                "config": {
+                    "radius": 16,
+                    "motion": 32
+                }
+            },
+            {
+                "name": "explosion_ground",
+                "count": 16,
+                "shape": "circle",
+                "config": {
+                    "radius": 16,
+                    "motion": 64
+                }
+            },
+            {
+                "name": "zombie_die",
+                "count": 6,
+                "shape": "circle",
+                "config": {
+                    "radius": 24
+                }
+            }
+        ]
+    },
+    {
+        "name": "zombie_die",
+        "duration": 0.5,
         "particles": [
             {
                 "name": "blood_chunk_triangle",

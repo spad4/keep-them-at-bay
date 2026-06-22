@@ -13,33 +13,20 @@ ZOMBIE_H_ADJUST = 6
 WALL_START = 140
 PLAYER_HEALTH = 20
 
-UNDEAD_SPAWN_ATTRIBUTES = {
-    ["walker"] = {
-        cost = 1,
-        x = 300,
-        y = 50
-    },
-    ["sprinter"] = {
-        cost = 1,
-        x = 300,
-        y = 100
-    }
-}
-
 BULLETS = {
     ["rifle"] = {
         name = "rifle",
         spr_x = 321,
-        spr_y = 176,
-        spr_w = 2,
+        spr_y = 177,
+        spr_w = 1,
         spr_h = 8,
         particle = "rifle_casing"
     },
     ["shell"] = {
         name = "shell",
-        spr_x = 324,
-        spr_y = 176,
-        spr_w = 3,
+        spr_x = 323,
+        spr_y = 177,
+        spr_w = 2,
         spr_h = 8,
         particle = "shell_casing"
     }
@@ -88,7 +75,7 @@ local function reset()
     Highlighted_Turret = nil
     Selected_Turret = nil
     Day = 1
-    Money = 250
+    Money = 200
     Is_Night = false
     Weather = "Clear"
     Game_Over = nil
@@ -103,11 +90,14 @@ local function reset()
     Drawer_Items = {}
     Highlighted_Drawer_Item = nil
     Highlighted_Tab = nil
-    Undead_Spawn_Weights = { ["walker"] = 100 }
     Potential_Unlocks = {
         "frag_grenade", "shotgun_weapon", "sniper_weapon", "burst_weapon", "shotgun_turret", "sniper_turret",
         "ice_turret", "molotov", "rifle_turret_3",
     }
+    Potential_Mutations = {
+        "sprinter_1", "shambler_2", "boomer_1", "conjoined_1"
+    }
+    -- Potential_Mutations = shuffle(Potential_Mutations)
     -- Potential_Unlocks = shuffle(Potential_Unlocks)
     Next_Is_Unlock = true
     Choice_1 = nil
@@ -115,6 +105,7 @@ local function reset()
     Choice_Type = nil
     Choice_Progression = 0
     Highlighted_Choice = 0
+    Discovered_Mutations = { "shambler_1" }
     Discovered_Weapons = {
         ["rifle_weapon"] = true
     }
@@ -123,7 +114,7 @@ local function reset()
     Grenades = {}
     Grenade_Slots = 1
     for i = 1, 20 do
-        Walls[i] = math.min(math.random() * 75 + 50, 100)
+        Walls[i] = 100
     end
     for i = 1, 16 do
         Turrets[i] = false
@@ -146,17 +137,19 @@ local function conditional_screen_shake(time, intensity)
     end
 end
 
-local function spawn_zombie(type, x, y)
+local function spawn_zombie(type, x, y, on_wall)
     local model = ZOMBIES[type]
 
     local new_zombie = {}
-    new_zombie.x = math.random(150 - x / 2, 155 + x / 2)
-    new_zombie.y = -1 * (math.random(0, y) + model.h * 2)
+    new_zombie.type = type
+    new_zombie.x = x
+    new_zombie.y = y
+    new_zombie.count = model.count or 0
     new_zombie.spr_x = model.spr_x
     new_zombie.spr_y = model.spr_y
     -- new_zombie.y = 100
     new_zombie.last_move = usagi.elapsed;
-    new_zombie.moved = false
+    new_zombie.moved = true
     new_zombie.current_frame = 1
     new_zombie.flip = math.random() > 0.5 and true or false
     new_zombie.kb_x = 0
@@ -169,6 +162,7 @@ local function spawn_zombie(type, x, y)
     new_zombie.money = model.money
     new_zombie.damage = model.damage
     new_zombie.variant = math.random(0, model.variants - 1)
+    new_zombie.on_wall = on_wall
     table.insert(Zombies, new_zombie)
 end
 
@@ -430,6 +424,75 @@ local function change_money(amount)
     Money += amount
 end
 
+
+local function get_nearest_in_range(range)
+    local can_hit = {}
+    local closest_distance = 9999
+    local closest_index = 0
+    for _, zombie in pairs(Zombies) do
+        if zombie.y <= WALL_START - 40 and not zombie.on_wall then -- zombies past the wall cannot be shot
+            local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
+            if util.circ_rect_overlap(range, rect) then
+                table.insert(can_hit, zombie)
+                local distance = util.vec_dist({ x = range.x, y = range.y },
+                    { x = zombie.x + ZOMBIE_W_ADJUST + 3, y = zombie.y + ZOMBIE_H_ADJUST + 3 })
+                if distance < closest_distance then
+                    closest_distance = distance
+                    closest_index = #can_hit
+                end
+            end
+        end
+    end
+
+    if #can_hit == 0 then return nil end
+
+    return can_hit[closest_index], closest_distance
+end
+
+local function get_all_in_range(range)
+    local can_hit = {}
+    for _, zombie in pairs(Zombies) do
+        if zombie.y <= WALL_START - 40 and not zombie.on_wall then -- zombies past the wall cannot be shot
+            local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
+            if util.circ_rect_overlap(range, rect) then
+                table.insert(can_hit, zombie)
+            end
+        end
+    end
+
+    if #can_hit == 0 then return nil end
+
+    return can_hit
+end
+
+local function boomer_explode(zombie)
+    zombie.health = 0
+    conditional_screen_shake(1, 2)
+    dandelion.boomer_explode(zombie.x + ZOMBIE_W_ADJUST, zombie.y + ZOMBIE_H_ADJUST)
+    local circle = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, r = 24 }
+    local targets = get_all_in_range(circle)
+    if zombie.on_wall and util.circ_rect_overlap(circle, { x = Player.x, y = Player.y, w = ZOMBIE_W_ADJUST, h = ZOMBIE_H_ADJUST }) then
+        damage_player(50)
+    end
+    if targets then
+        for _, target in pairs(targets) do
+            local dx, dy = target.x + ZOMBIE_W_ADJUST - zombie.x, target.y + ZOMBIE_H_ADJUST - zombie.y
+            local h = util.vec_dist({ x = 0, y = 0 }, { x = dx, y = dy })
+            local theta = math.asin(dy / h)
+            local angle = dx > 0 and theta or (math.pi - theta)
+            local distance = util.vec_dist({ x = zombie.x, y = zombie.y },
+                { x = target.x + ZOMBIE_W_ADJUST, y = target.y + ZOMBIE_H_ADJUST })
+            local damage = 5 + 15 - distance / 2
+            local vec = util.vec_from_angle(angle, math.random() * damage / 2 + damage / 2)
+            if string.match(target.type, "boomer") and target.health > 0 then
+                boomer_explode(target)
+            end
+            target.health -= damage
+            apply_knockback_zombie(target, vec.x, vec.y)
+        end
+    end
+end
+
 local function do_zombies()
     for i = #Zombies, 1, -1 do
         local zombie = Zombies[i]
@@ -440,6 +503,18 @@ local function do_zombies()
             Zombies_Killed += 1
             change_money(zombie.money)
             table.remove(Zombies, i)
+
+            if string.match(zombie.type, "conjoined") then
+                for _ = 1, zombie.count do
+                    dandelion.zombie_die(zombie.x + ZOMBIE_W_ADJUST + 4, zombie.y + ZOMBIE_H_ADJUST - 4)
+                    dandelion.zombie_die(zombie.x + ZOMBIE_W_ADJUST + 4, zombie.y + ZOMBIE_H_ADJUST + 4)
+                    local x = zombie.x - ZOMBIE_W_ADJUST + 4 + math.random() * 8 - 4
+                    local y = zombie.y - ZOMBIE_H_ADJUST + math.random() * 8 - 4
+                    spawn_zombie("shambler_1", x, y, zombie.on_wall)
+                end
+            elseif string.match(zombie.type, "boomer") then
+                boomer_explode(zombie)
+            end
         else
             local elapsed = usagi.elapsed
 
@@ -476,11 +551,23 @@ local function do_zombies()
                         ) and elapsed - Player.last_hit > 0.25 then
                         Player.kb = diff > 0 and (zombie.damage * 2) or (-2 * zombie.damage)
                         damage_player(zombie.damage)
+                        if string.match(zombie.type, "boomer") then
+                            boomer_explode(zombie)
+                        end
                     end
                     zombie.last_move = elapsed - zombie.move_delay / 2
                 else
                     local wall1, wall2 = blocked_by_wall(zombie.x + ZOMBIE_W_ADJUST, zombie.y + ZOMBIE_H_ADJUST,
                         ZOMBIE_W_ADJUST, ZOMBIE_H_ADJUST)
+                    if wall1 or wall2 and string.match(zombie.type, "boomer") then
+                        boomer_explode(zombie)
+                        if wall1 then
+                            Walls[wall1] = 0
+                        end
+                        if wall2 then
+                            Walls[wall2] = 0
+                        end
+                    end
                     if wall1 then
                         Walls[wall1] = math.max(0, Walls[wall1] - zombie.damage)
                         dandelion.hit_wall((wall1 - 1) * 16 + 8, 140)
@@ -510,8 +597,8 @@ end
 
 local function total_undead_weight()
     local to_return = 0
-    for _, v in pairs(Undead_Spawn_Weights) do
-        to_return += v
+    for _, v in pairs(Discovered_Mutations) do
+        to_return += ZOMBIES[v].weight
     end
     return to_return
 end
@@ -520,13 +607,14 @@ local function get_random_undead(total)
     local roll = math.random(1, total)
     local cumulative = 0
 
-    for type, weight in pairs(Undead_Spawn_Weights) do
+    for _, type in pairs(Discovered_Mutations) do
+        local weight = ZOMBIES[type].weight
         cumulative += weight
         if roll < cumulative then
             return type
         end
     end
-    return "walker"
+    return "shambler_1"
 end
 
 local function start_next_night()
@@ -542,21 +630,19 @@ local function start_next_night()
 
     for i = 1, night_length, spacing do
         local type = get_random_undead(total_weight)
-        local cost = UNDEAD_SPAWN_ATTRIBUTES[type].cost
+        local cost = ZOMBIES[type].cost
         local count = util.round(5 / cost)
         local wave_spawn = {
             time = i,
             count = count,
             type = type,
             spread = {
-                x = UNDEAD_SPAWN_ATTRIBUTES[type].x,
-                y = UNDEAD_SPAWN_ATTRIBUTES[type].y
+                x = ZOMBIES[type].spread_x,
+                y = ZOMBIES[type].spread_y
             }
         }
-        -- print(i .. " " .. type)
         table.insert(Current_Wave, wave_spawn)
     end
-    -- print(usagi.to_json(Current_Wave))
 
     Is_Night = true
     Choice_Progression = 0
@@ -564,7 +650,6 @@ local function start_next_night()
 end
 
 local function next_day()
-    Day += 1
     Is_Night = false
     dandelion.ClearEmitters()
     Weather = "clear"
@@ -582,10 +667,17 @@ local function next_day()
             Choice_2 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
             Choice_Type = "unlock"
         else
-            -- choose mutation
+            local f = table.remove(Potential_Mutations, 1)
+            local s = table.remove(Potential_Mutations, 1)
+            Choice_1 = ZOMBIES[f]
+            Choice_1.id = f
+            Choice_2 = ZOMBIES[s]
+            Choice_2.id = s
+            Choice_Type = "mutation"
         end
         Next_Is_Unlock = not Next_Is_Unlock
     end
+    Day += 1
 end
 
 local function do_waves()
@@ -599,7 +691,9 @@ local function do_waves()
     local next_spawn = Current_Wave[1]
     if usagi.elapsed - Transition_Started > next_spawn.time then
         for i = 1, next_spawn.count do
-            spawn_zombie(next_spawn.type, next_spawn.spread.x, next_spawn.spread.y)
+            local x = math.random(150 - next_spawn.spread.x / 2, 155 + next_spawn.spread.x / 2)
+            local y = -1 * (math.random(0, next_spawn.spread.y) + 20)
+            spawn_zombie(next_spawn.type, x, y, false)
         end
         table.remove(Current_Wave, 1)
     end
@@ -644,46 +738,6 @@ local function fill_drawer_items()
             table.insert(Drawer_Items, GRENADES[id])
         end
     end
-end
-
-local function get_nearest_in_range(range)
-    local can_hit = {}
-    local closest_distance = 9999
-    local closest_index = 0
-    for _, zombie in pairs(Zombies) do
-        if zombie.y <= WALL_START - 40 and not zombie.on_wall then -- zombies past the wall cannot be shot
-            local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
-            if util.circ_rect_overlap(range, rect) then
-                table.insert(can_hit, zombie)
-                local distance = util.vec_dist({ x = range.x, y = range.y },
-                    { x = zombie.x + ZOMBIE_W_ADJUST + 3, y = zombie.y + ZOMBIE_H_ADJUST + 3 })
-                if distance < closest_distance then
-                    closest_distance = distance
-                    closest_index = #can_hit
-                end
-            end
-        end
-    end
-
-    if #can_hit == 0 then return nil end
-
-    return can_hit[closest_index], closest_distance
-end
-
-local function get_all_in_range(range)
-    local can_hit = {}
-    for _, zombie in pairs(Zombies) do
-        if zombie.y <= WALL_START - 40 and not zombie.on_wall then -- zombies past the wall cannot be shot
-            local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
-            if util.circ_rect_overlap(range, rect) then
-                table.insert(can_hit, zombie)
-            end
-        end
-    end
-
-    if #can_hit == 0 then return nil end
-
-    return can_hit
 end
 
 local function do_turrets()
@@ -814,7 +868,7 @@ function _update(dt)
     end
 
     if input.key_held(input.KEY_H) then
-        spawn_zombie("walker", 60, 0)
+        spawn_zombie("shambler_1", 60, 0)
     end
 
     if input.key_pressed(input.KEY_C) then
@@ -888,12 +942,9 @@ function _update(dt)
             end
 
             if input.mouse_pressed(input.MOUSE_LEFT) then
-                if Highlighted_Choice then
+                if Highlighted_Choice and Choice_Progression > 2 then
                     local choice = Highlighted_Choice == 1 and Choice_1 or Choice_2
                     local discarded = Highlighted_Choice == 1 and Choice_2 or Choice_1
-
-                    -- discarded goes to back of line
-                    table.insert(Potential_Unlocks, discarded.id)
 
                     if choice.class == "Turret" then
                         table.insert(Discovered_Turrets, choice.id)
@@ -907,9 +958,32 @@ function _update(dt)
                     if choice.class == "Grenade" then
                         Discovered_Grenades[choice.id] = false
                     end
+                    if Choice_Type == "mutation" then
+                        -- discarded goes to back of line
+                        table.insert(Potential_Mutations, discarded.id)
+                        table.insert(Discovered_Mutations, choice.id)
+                        local previous = nil
+                        for i, v in pairs(Discovered_Mutations) do
+                            if v == choice.previous then
+                                previous = i
+                            end
+                        end
+                        if previous then
+                            table.remove(Discovered_Mutations, previous)
+                        end
+                        if choice.next then
+                            table.insert(Potential_Mutations, math.random(1, math.floor(#Potential_Mutations / 2) or 1),
+                                choice.next)
+                        end
+                        print(#Potential_Mutations)
+                    else
+                        -- discarded goes to back of line
+                        table.insert(Potential_Unlocks, discarded.id)
+                    end
                     -- next preferred upgrade is put somewhere in the front half
-                    if choice.next then
-                        table.insert(Potential_Unlocks, math.random(1, (#Potential_Unlocks / 2) or 1), choice.next)
+                    if Choice_Type ~= "mutation" and choice.next then
+                        table.insert(Potential_Unlocks, math.random(1, math.floor(#Potential_Unlocks / 2) or 1),
+                            choice.next)
                     end
                     -- print(usagi.to_json(Potential_Unlocks))
                     Choice_1 = nil
@@ -1121,18 +1195,19 @@ end
 
 local function draw_hud()
     -- Ammo bar
-    gfx.rect_fill(4, 157, Weapon.ammo * BULLETS[Weapon.bullet].spr_w + 3, 10, gfx.COLOR_BLACK)
-    gfx.rect_fill(4, 156, Weapon.ammo * BULLETS[Weapon.bullet].spr_w + 3, 10, gfx.COLOR_DARK_GRAY)
+    gfx.rect_fill(4, 157, Weapon.ammo * (BULLETS[Weapon.bullet].spr_w + 1) + 3, 10, gfx.COLOR_BLACK)
+    gfx.rect_fill(4, 156, Weapon.ammo * (BULLETS[Weapon.bullet].spr_w + 1) + 3, 10, gfx.COLOR_DARK_GRAY)
     local bullet = BULLETS[Weapon.bullet]
     if Reloading then
-        text_with_shadow("Reloading...", Weapon.ammo * bullet.spr_w + 9, 154, gfx.COLOR_WHITE, gfx
+        text_with_shadow("Reloading...", Weapon.ammo * (bullet.spr_w + 1) + 9, 154, gfx.COLOR_WHITE, gfx
             .COLOR_DARK_GRAY)
     end
     for i = Ammo + 1, Weapon.ammo do
-        gfx.sspr(bullet.spr_x, bullet.spr_y + bullet.spr_h, bullet.spr_w, bullet.spr_h, 4 + i * bullet.spr_w, 157)
+        gfx.sspr(bullet.spr_x, bullet.spr_y + bullet.spr_h, bullet.spr_w, bullet.spr_h, 6 + (i - 1) * (bullet.spr_w + 1),
+            158)
     end
     for i = 1, Ammo do
-        gfx.sspr(bullet.spr_x, bullet.spr_y, bullet.spr_w, bullet.spr_h, 4 + i * bullet.spr_w, 157)
+        gfx.sspr(bullet.spr_x, bullet.spr_y, bullet.spr_w, bullet.spr_h, 6 + (i - 1) * (bullet.spr_w + 1), 158)
     end
 
     -- Health bar
@@ -1386,7 +1461,7 @@ local function draw_choices()
         end
     end
     if Choice_Progression >= 2 then
-        text_with_shadow(text_2, #text_1*6 + 12, 1, color, shadow)
+        text_with_shadow(text_2, #text_1 * 6 + 12, 1, color, shadow)
         if elapsed > 3 and Choice_Progression == 2 then
             Choice_Progression = 3
             conditional_screen_shake(0.25, 0.5)
@@ -1402,6 +1477,9 @@ local function draw_choices()
         text_with_shadow(Choice_1.name, 12, 15, gfx.COLOR_RED, gfx.COLOR_DARK_PURPLE)
         text_with_shadow(Choice_1.class, w + 4 - type_size, 15, gfx.COLOR_LIGHT_GRAY, gfx.COLOR_DARK_GRAY)
         text_with_shadow(Choice_1.description, 12, 31, gfx.COLOR_WHITE, gfx.COLOR_INDIGO)
+        if Choice_Type == "mutation" then
+            gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 16, 16, 48, 40, 64, 64, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
+        end
         if elapsed > 3.25 and Choice_Progression == 3 then
             Choice_Progression = 4
             conditional_screen_shake(0.25, 0.5)
@@ -1418,6 +1496,10 @@ local function draw_choices()
         text_with_shadow(Choice_2.class, usagi.GAME_W - w + 132 - type_size, 15, gfx.COLOR_LIGHT_GRAY,
             gfx.COLOR_DARK_GRAY)
         text_with_shadow(Choice_2.description, usagi.GAME_W - w - 4, 32, gfx.COLOR_WHITE, gfx.COLOR_INDIGO)
+        if Choice_Type == "mutation" then
+            gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 16, 16, usagi.GAME_W - w + 32, 40, 64, 64, false, false, 0,
+                gfx.COLOR_TRUE_WHITE, 1)
+        end
         if elapsed > 4 and Choice_Progression == 4 then
             Choice_Progression = 5
         end
@@ -1487,7 +1569,7 @@ function _draw(dt)
         draw_choices()
     end
 
-    if not Is_Night and Player.x < 10 then
+    if not Is_Night and Player.x < 10 and not Choice_1 then
         text_with_shadow("[SPACE] Start Night", 0, 104, gfx.COLOR_RED, gfx.COLOR_DARK_PURPLE)
     end
 

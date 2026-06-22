@@ -20,16 +20,16 @@ return {
     ["shotgun_turret"] = {
         id = "shotgun_turret",
         name = "SLUG Mk. I",
-        class = "Upgrade",
+        class = "Turret",
         description = "Close-range shotgun.",
         next = "shotgun_turret_2"
     },
     ["shotgun_turret_2"] = {
         id = "rifle_turret_2",
-        name = "FOX Mk. II",
+        name = "SLUG Mk. II",
         class = "Upgrade",
         description = "Improved feed mechanism.",
-        next = "rifle_turret_2"
+        next = "shotgun_turret_3"
     },
     ["sniper_turret"] = {
         id = "sniper_turret",

@@ -47,7 +47,7 @@
         "color": "gfx.COLOR_GREEN",
         "type": "text",
         "dx": "-12 - (self.length or 0)",
-        "dy": "-3 * math.log(self.age * 20 + 1, 2)",
+        "dy": "-3 * math.log(self.age * 20 + 1, 2) + self.random_1 * 4",
         "config": {
             "text": "'+$' .. self.amount or '0'",
             "shadow": "gfx.COLOR_DARK_GREEN",
@@ -91,6 +91,20 @@
         "config": {
             "length": 2,
             "rotation": "self.age * 20",
+            "centered": true
+        }
+    },
+    {
+        "name": "shell_casing",
+        "duration": 2,
+        "type": "line",
+        "color": "gfx.COLOR_YELLOW",
+        "dx": "self.age * (self.random_1 * 20 + 25) * (self.flip or 1)",
+        "dy": "(4*(self.age - 0.375) ^ 2) * (self.random_1 * 10 + 10) - 12",
+        "config": {
+            "length": 2,
+            "rotation": "self.age * 5",
+            "thickness": 2,
             "centered": true
         }
     },
