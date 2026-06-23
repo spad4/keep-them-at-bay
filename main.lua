@@ -8,7 +8,7 @@ local GRENADES = require("grenades")
 
 H_SIZE = 16
 PLAYER_SPEED = 40
-ZOMBIE_SPEED = 2
+ZOMBIE_SPEED = 3
 ZOMBIE_W_ADJUST = 5
 ZOMBIE_H_ADJUST = 6
 WALL_START = 140
@@ -98,13 +98,20 @@ local function reset()
     Walls = {}
     Wall_Flipped = {}
     Turrets = {}
-    Discovered_Turrets = { "rifle_turret_1", "sniper_turret_1", "shotgun_turret_1", "ice_turret_1" }
+    Discovered_Turrets = { "rifle_turret_1"}
     Discovered_Turret_Upgrades = {
-        ["sniper_turret_2"] = true,
-        ["sniper_turret_3"] = true,
-        ["ice_turret_2"] = true,
-        ["ice_turret_3"] = true
     }
+    -- Discovered_Turrets = { "rifle_turret_1","shotgun_turret_1","sniper_turret_1","ice_turret_1"}
+    -- Discovered_Turret_Upgrades = {
+    --     ["rifle_turret_2"] = true,
+    --     ["rifle_turret_3"] = true,
+    --     ["shotgun_turret_2"] = true,
+    --     ["shotgun_turret_3"] = true,
+    --     ["sniper_turret_2"] = true,
+    --     ["sniper_turret_3"] = true,
+    --     ["ice_turret_2"] = true,
+    --     ["ice_turret_3"] = true
+    -- }
     Highlighted_Turret = nil
     Selected_Turret = nil
     Last_Selected_Turret = 1
@@ -189,6 +196,7 @@ local function spawn_zombie(type, x, y, on_wall)
     new_zombie.type = type
     new_zombie.x = x
     new_zombie.y = y
+    new_zombie.scale = 1
     new_zombie.count = model.count or 0
     new_zombie.spr_x = model.spr_x
     new_zombie.spr_y = model.spr_y
@@ -346,6 +354,7 @@ local function shoot()
         local zombie, distance = hit_zombie(start_x, start_y, end_x, end_y)
         if zombie then
             zombie.health -= Weapon.damage
+            zombie.scale = 1.1
 
             -- knockback
             local scaled_damage = Weapon.damage / 10
@@ -821,10 +830,10 @@ local function next_upgrade(id)
 end
 
 local function insert_drawer_by_order(item)
-    local order = item.order or 1
+    local cost = item.cost or 1
     for i, v in pairs(Drawer_Items) do
-        local v_order = v.order or 1
-        if v_order > order then
+        local v_cost = v.cost or 1
+        if v_cost > cost then
             table.insert(Drawer_Items, i, item)
             return
         end
@@ -890,6 +899,7 @@ local function do_turrets()
                 local zombie, distance = hit_zombie(start_x, start_y, end_x, end_y)
                 if zombie then
                     zombie.health -= turret.damage
+                    zombie.scale = 1.1
 
                     -- knockback
                     local scaled_damage = turret.damage / 10
@@ -1276,10 +1286,10 @@ local function draw_zombies()
             table.insert(WallZombies, zombie)
         elseif zombie.moved then
             local tint = (usagi.elapsed - zombie.chill_time < CHILL_DURATION) and gfx.COLOR_BLUE or gfx.COLOR_TRUE_WHITE
+            zombie.scale = util.approach(zombie.scale, 1, (zombie.scale ^ 4) / 100)
             gfx.sspr_ex(zombie.spr_x + zombie.variant * H_SIZE, zombie.spr_y + zombie.current_frame * H_SIZE, H_SIZE,
-                H_SIZE, zombie.x, zombie.y, H_SIZE, H_SIZE,
-                zombie.flip,
-                false, 0, tint, 1)
+                H_SIZE, zombie.x - 2*(zombie.scale - 1), zombie.y - 2*(zombie.scale - 1), H_SIZE * zombie.scale, H_SIZE * zombie.scale,
+                zombie.flip, false, 0, tint, 1)
         end
     end
 end
@@ -1571,7 +1581,8 @@ local function draw_drawer()
         end
         if item then
             if Drawer_Type == "turret" then
-                gfx.sspr_ex(496, 496, 16, 16, x, y, 28, 28, false, false, 0, gfx.COLOR_DARK_GRAY, 0.5)
+                local tint = item.cost > Money and gfx.COLOR_DARK_GRAY or gfx.COLOR_TRUE_WHITE
+                gfx.sspr_ex(item.spr_x, item.spr_y, 28, 28, x, y, 28, 28, false, false, 0, tint, 1)
                 local color = Money >= item.cost and gfx.COLOR_YELLOW or gfx.COLOR_LIGHT_GRAY
                 local shadow = Money >= item.cost and gfx.COLOR_BROWN or gfx.COLOR_DARK_GRAY
                 text_with_shadow("$" .. item.display_cost, x + 1, y + 16, color, shadow)
@@ -1652,9 +1663,15 @@ local function draw_choices()
         text_with_shadow(Choice_1.name, 12, 15, gfx.COLOR_RED, gfx.COLOR_DARK_PURPLE)
         text_with_shadow(Choice_1.class, w + 4 - type_size, 15, gfx.COLOR_LIGHT_GRAY, gfx.COLOR_DARK_GRAY)
         text_with_shadow(Choice_1.description, 12, 31, gfx.COLOR_WHITE, gfx.COLOR_INDIGO)
-        if Choice_Type == "mutation" then
+        if Choice_Type == "mutation" or Choice_1.class == "Weapon" then
             gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 16, 16, 48, 40, 64, 64, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
+        elseif Choice_Type == "upgrade" then
+            gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 16, 16, 56, 52, 48, 48, false, false, 0,
+                gfx.COLOR_TRUE_WHITE, 1)
+        elseif Choice_Type == "unlock" then
+            gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 28, 28, 52, 52, 56, 56, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
         end
+        
         if elapsed > 3.25 and Choice_Progression == 3 then
             Choice_Progression = 4
             conditional_screen_shake(0.25, 0.5)
@@ -1671,9 +1688,16 @@ local function draw_choices()
         text_with_shadow(Choice_2.class, usagi.GAME_W - w + 132 - type_size, 15, gfx.COLOR_LIGHT_GRAY,
             gfx.COLOR_DARK_GRAY)
         text_with_shadow(Choice_2.description, usagi.GAME_W - w - 4, 32, gfx.COLOR_WHITE, gfx.COLOR_INDIGO)
-        if Choice_Type == "mutation" then
+        if Choice_Type == "mutation" or Choice_2.class == "Weapon" then
             gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 16, 16, usagi.GAME_W - w + 32, 40, 64, 64, false, false, 0,
                 gfx.COLOR_TRUE_WHITE, 1)
+        elseif Choice_Type == "upgrade" then
+            gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 16, 16, usagi.GAME_W - w + 40, 52, 48, 48, false, false, 0,
+                gfx.COLOR_TRUE_WHITE, 1)
+        elseif Choice_Type == "unlock" then
+            gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 28, 28, usagi.GAME_W - w + 36, 52, 56, 56, false, false, 0,
+                gfx.COLOR_TRUE_WHITE, 1)
+
         end
         if elapsed > 4 and Choice_Progression == 4 then
             Choice_Progression = 5

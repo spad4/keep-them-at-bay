@@ -50,7 +50,7 @@
         "dy": "-3 * math.log(self.age * 20 + 1, 2) + self.random_1 * 4",
         "config": {
             "text": "'+$' .. self.amount or '0'",
-            "shadow": "gfx.COLOR_DARK_GREEN",
+            "shadow": "gfx.COLOR_BLACK",
             "alpha": "1 - self.age / self.duration"
         }
     },

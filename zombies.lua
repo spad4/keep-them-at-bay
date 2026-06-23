@@ -79,7 +79,7 @@ return {
         weight = 20,
         cost = 1,
         spread_x = 300,
-        spread_y = 100
+        spread_y = 150
     },
     ["sprinter_2"] = {
         name = "SPRINTER",
@@ -99,7 +99,7 @@ return {
         weight = 30,
         cost = 1,
         spread_x = 300,
-        spread_y = 100
+        spread_y = 150
     },
     ["sprinter_3"] = {
         name = "SPRINTER",
@@ -119,7 +119,7 @@ return {
         weight = 40,
         cost = 1,
         spread_x = 300,
-        spread_y = 100
+        spread_y = 150
     },
 
 

@@ -3,18 +3,24 @@ return {
         id = "shotgun_weapon",
         name = "BULLFROG",
         class = "Weapon",
+        spr_x = 336,
+        spr_y = 208,
         description = "High spread shotgun.",
     },
     ["sniper_weapon"] = {
         id = "sniper_weapon",
-        name = "PYTHON",
+        name = "SNAPPER",
         class = "Weapon",
+        spr_x = 352,
+        spr_y = 208,
         description = "Precise sniper rifle.",
     },
     ["burst_weapon"] = {
         id = "burst_weapon",
         name = "BEETLE",
         class = "Weapon",
+        spr_x = 368,
+        spr_y = 208,
         description = "Rapid burst SMG.",
     },
 
@@ -24,6 +30,8 @@ return {
         name = "FOX Mk II",
         class = "Upgrade",
         description = "Higher range.",
+        spr_x = 352,
+        spr_y = 64,
         next = "rifle_turret_3"
     },
     ["rifle_turret_3"] = {
@@ -31,6 +39,8 @@ return {
         name = "FOX Mk III",
         class = "Upgrade",
         description = "Improved feed mechanism.",
+        spr_x = 384,
+        spr_y = 64,
         next = "rifle_turret_4"
     },
 
@@ -40,6 +50,8 @@ return {
         name = "SLUG Mk. I",
         class = "Turret",
         description = "Close-range shotgun.",
+        spr_x = 416,
+        spr_y = 64,
         next = "shotgun_turret_2"
     },
     ["shotgun_turret_2"] = {
@@ -47,12 +59,16 @@ return {
         name = "SLUG Mk. II",
         class = "Upgrade",
         description = "Faster reload.",
+        spr_x = 448,
+        spr_y = 64,
         next = "shotgun_turret_3"
     },
     ["shotgun_turret_3"] = {
         id = "rifle_turret_3",
         name = "SLUG Mk. III",
         class = "Upgrade",
+        spr_x = 480,
+        spr_y = 64,
         description = "Higher damage."
     },
 
@@ -62,6 +78,8 @@ return {
         name = "VIPER Mk. I",
         class = "Turret",
         description = "High-velocity sniper.",
+        spr_x = 320,
+        spr_y = 96,
         next = "sniper_turret_2"
     },
     ["sniper_turret_2"] = {
@@ -69,12 +87,16 @@ return {
         name = "VIPER Mk. I",
         class = "Turret",
         description = "Increased damage.",
+        spr_x = 352,
+        spr_y = 96,
         next = "sniper_turret_3"
     },
     ["sniper_turret_3"] = {
         id = "sniper_turret_3",
         name = "VIPER Mk. III",
         class = "Turret",
+        spr_x = 384,
+        spr_y = 96,
         description = "Increased sensor range."
     },
 
@@ -84,6 +106,8 @@ return {
         name = "URSA Mk. I",
         class = "Turret",
         description = "Powerful blast chiller.",
+        spr_x = 416,
+        spr_y = 96,
         next = "ice_turret_2"
     },
     ["ice_turret_2"] = {
@@ -91,11 +115,15 @@ return {
         name = "URSA Mk. I",
         class = "Turret",
         description = "Increased area of effect.",
+        spr_x = 448,
+        spr_y = 96,
         next = "ice_turret_3"
     },
     ["ice_turret_3"] = {
         id = "ice_turret_3",
         name = "URSA Mk. I",
+        spr_x = 480,
+        spr_y = 96,
         class = "Turret",
         description = "Increased range."
     },
