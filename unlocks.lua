@@ -84,7 +84,7 @@ return {
     },
     ["sniper_turret_2"] = {
         id = "sniper_turret_2",
-        name = "VIPER Mk. I",
+        name = "VIPER Mk. II",
         class = "Turret",
         description = "Increased damage.",
         spr_x = 352,
@@ -112,66 +112,70 @@ return {
     },
     ["ice_turret_2"] = {
         id = "ice_turret_2",
-        name = "URSA Mk. I",
+        name = "URSA Mk. II",
         class = "Turret",
-        description = "Increased area of effect.",
+        description = "Increased AOE.",
         spr_x = 448,
         spr_y = 96,
         next = "ice_turret_3"
     },
     ["ice_turret_3"] = {
         id = "ice_turret_3",
-        name = "URSA Mk. I",
+        name = "URSA Mk. III",
         spr_x = 480,
         spr_y = 96,
         class = "Turret",
         description = "Increased range."
     },
 
-    ["sawblade_turret"] = {
-        id = "sawblade_turret",
-        name = "SHARK Mk. I",
-        class = "Turret",
-        description = "Fires deadly sawblades.",
-        next = "sawblade_turret_2"
-    },
-    ["flamethrower_turret"] = {
-        id = "flamethrower_turret",
-        name = "KOMODO Mk. I",
-        class = "Turret",
-        description = "Imprecise flamethrower.",
-        next = "flamethrower_turret_2"
-    },
-    ["tesla_turret"] = {
-        id = "tesla_turret",
-        name = "EEL Mk. I",
-        class = "Turret",
-        description = "Stuns with electricity.",
-        next = "tesla_turret_2"
-    },
-    ["laser_turret"] = {
-        id = "laser_turret",
-        name = "KOMODO Mk. I",
-        class = "Turret",
-        description = "Continuous energy cannon.",
-        next = "laser_turret_2"
-    },
+    -- ["sawblade_turret"] = {
+    --     id = "sawblade_turret",
+    --     name = "SHARK Mk. I",
+    --     class = "Turret",
+    --     description = "Fires deadly sawblades.",
+    --     next = "sawblade_turret_2"
+    -- },
+    -- ["flamethrower_turret"] = {
+    --     id = "flamethrower_turret",
+    --     name = "KOMODO Mk. I",
+    --     class = "Turret",
+    --     description = "Imprecise flamethrower.",
+    --     next = "flamethrower_turret_2"
+    -- },
+    -- ["tesla_turret"] = {
+    --     id = "tesla_turret",
+    --     name = "EEL Mk. I",
+    --     class = "Turret",
+    --     description = "Stuns with electricity.",
+    --     next = "tesla_turret_2"
+    -- },
+    -- ["laser_turret"] = {
+    --     id = "laser_turret",
+    --     name = "KOMODO Mk. I",
+    --     class = "Turret",
+    --     description = "Continuous energy cannon.",
+    --     next = "laser_turret_2"
+    -- },
     ["frag_grenade"] = {
         id = "frag_grenade",
         name = "FRAG GRENADE",
         class = "Grenade",
+        spr_x = 288,
+        spr_y = 192,
         description = "Standard frag grenade.",
     },
     ["molotov"] = {
         id = "molotov",
         name = "MOLOTOV",
         class = "Grenade",
+        spr_x = 272,
+        spr_y = 192,
         description = "Spreads fiery alcohol.",
     },
-    ["gravity"] = {
-        id = "shotgun",
-        name = "GRAVITY",
-        class = "Grenade",
-        description = "Draws in undead.",
-    }
+    -- ["gravity"] = {
+    --     id = "shotgun",
+    --     name = "GRAVITY",
+    --     class = "Grenade",
+    --     description = "Draws in undead.",
+    -- }
 }

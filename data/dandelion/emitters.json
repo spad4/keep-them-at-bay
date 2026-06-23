@@ -317,10 +317,80 @@
                 "shape": "circle",
                 "config": {
                     "radius": 1,
-                    "motion": 64,
+                    "motion": -64,
                     "distribution": "even",
                     "outline": true,
                     "rotation": "self.rotation+1 or 0"
+                }
+            }
+        ]
+    },
+    {
+        "name": "molotov_break",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "molotov_glass",
+                "count": 16,
+                "shape": "circle",
+                "config": {
+                    "radius": 8
+                }
+            }
+        ]
+    },
+    {
+        "name": "on_fire",
+        "duration": 0.1,
+        "particles": [
+            {
+                "name": "flame",
+                "count": 2,
+                "frequency": 0.125,
+                "shape": "rectangle",
+                "config": {
+                    "width": 8,
+                    "height": 8
+                }
+            },
+            {
+                "name": "fire_smoke",
+                "count": 1,
+                "frequency": 0.125,
+                "shape": "rectangle",
+                "config": {
+                    "width": 8,
+                    "height": 8
+                }
+            }
+        ]
+    },
+    {
+        "name": "molotov_fire",
+        "duration": 10,
+        "particles": [
+            {
+                "name": "on_fire",
+                "count": 2,
+                "frequency": 0.01,
+                "shape": "circle",
+                "config": {
+                    "radius": 32
+                }
+            }
+        ]
+    },
+    {
+        "name": "short_molotov_fire",
+        "duration": 5,
+        "particles": [
+            {
+                "name": "on_fire",
+                "count": 2,
+                "frequency": 0.01,
+                "shape": "circle",
+                "config": {
+                    "radius": 32
                 }
             }
         ]

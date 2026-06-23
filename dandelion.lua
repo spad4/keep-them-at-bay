@@ -373,7 +373,7 @@ local function circle_emitter(emitter, config, i, max)
 
     local x = 0
     local y = 0
-    local angle = math.pi * (a() + rotation)
+    local angle = math.pi * (2 * a() + rotation)
     local ax = math.cos(angle)
     local ay = math.sin(angle)
     if not config.outline then

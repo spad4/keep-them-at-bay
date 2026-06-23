@@ -13,6 +13,7 @@ ZOMBIE_W_ADJUST = 5
 ZOMBIE_H_ADJUST = 6
 WALL_START = 140
 CHILL_DURATION = 2
+FIRE_DURATION = 4
 
 BULLETS = {
     ["rifle"] = {
@@ -132,14 +133,14 @@ local function reset()
     Highlighted_Drawer_Item = nil
     Highlighted_Tab = nil
     Potential_Unlocks = {
-        "shotgun_weapon", "sniper_weapon", "burst_weapon", "shotgun_turret_1",
-        "sniper_turret_1", "ice_turret_1"
+        "molotov", "shotgun_weapon", "sniper_weapon", "burst_weapon", "shotgun_turret_1",
+        "sniper_turret_1", "ice_turret_1", "rifle_turret_2",
     }
     Potential_Mutations = {
-        "sprinter_1", "shambler_2", "boomer_1", "conjoined_1"
+        "sprinter_1", "shambler_2", "boomer_1", "conjoined_1", "stalker_1"
     }
     Potential_Mutations = shuffle(Potential_Mutations)
-    Potential_Unlocks = shuffle(Potential_Unlocks)
+    -- Potential_Unlocks = shuffle(Potential_Unlocks)
     Next_Is_Unlock = true
     Choice_1 = nil
     Choice_2 = nil
@@ -209,6 +210,7 @@ local function spawn_zombie(type, x, y, on_wall)
     new_zombie.kb_x = 0
     new_zombie.kb_y = 0
     new_zombie.on_wall = false
+    new_zombie.invis_cutoff = model.invis_cutoff or 0
     new_zombie.w = model.w
     new_zombie.h = model.h
     new_zombie.health = model.health * (math.random() * 0.5 + 0.75)
@@ -218,6 +220,7 @@ local function spawn_zombie(type, x, y, on_wall)
     new_zombie.variant = math.random(0, model.variants - 1)
     new_zombie.on_wall = on_wall
     new_zombie.chill_time = 0
+    new_zombie.burn_time = 0
     table.insert(Zombies, new_zombie)
 end
 
@@ -494,7 +497,7 @@ local function get_nearest_in_range(range)
     local closest_distance = 9999
     local closest_index = 0
     for _, zombie in pairs(Zombies) do
-        if zombie.y <= WALL_START - 40 and zombie.y > -10 and not zombie.on_wall then -- zombies past the wall cannot be shot
+        if zombie.y <= WALL_START - 40 and zombie.y > -10 and not zombie.on_wall and (not string.match(zombie.type, "stalker") or zombie.y > zombie.invis_cutoff) then -- zombies past the wall cannot be shot
             local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
             if util.circ_rect_overlap(range, rect) then
                 table.insert(can_hit, zombie)
@@ -947,35 +950,63 @@ local function do_grenades()
     for i = #Grenades, 1, -1 do
         local grenade = Grenades[i]
         grenade.age = Elapsed - grenade.born
-        local duration = grenade.duration
-        local t = grenade.age / duration
 
-        grenade.cx = util.lerp(grenade.x, grenade.dx, t)
-        grenade.cy = util.lerp(grenade.y, grenade.dy, t)
-        grenade.scale = 0.2 + 0.8 * (1 - math.abs(2 * t - 1) ^ 3)
+        if grenade.id == "molotov_fire" then
+            if Elapsed - grenade.born > (Weather == "rain" and 5 or 10) then
+                table.remove(Grenades, i)
+            end
 
-        if grenade.age > duration then
-            table.remove(Grenades, i)
-            if grenade.id == "frag_grenade" then
-                conditional_screen_shake(1, 2)
-                dandelion.frag_grenade(grenade.dx, grenade.dy)
-                local targets = get_all_in_range({ x = grenade.dx, y = grenade.dy, r = 32 }, true)
-                if targets then
-                    for _, zombie in pairs(targets) do
-                        local dx, dy = zombie.x + ZOMBIE_W_ADJUST - grenade.dx, zombie.y + ZOMBIE_H_ADJUST - grenade.dy
-                        local h = util.vec_dist({ x = 0, y = 0 }, { x = dx, y = dy })
-                        local theta = math.asin(dy / h)
-                        local angle = dx > 0 and theta or (math.pi - theta)
-                        local distance = util.vec_dist({ x = grenade.dx, y = grenade.dy },
-                            { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST })
-                        local damage = 5 + 48 - distance
-                        local vec = util.vec_from_angle(angle, math.random() * damage / 2 + damage / 2)
-                        zombie.health -= damage
-                        apply_knockback_zombie(zombie, vec.x, vec.y)
+            local targets = get_all_in_range({ x = grenade.x, y = grenade.y, r = 32 }, true)
+            if targets then
+                for _, zombie in pairs(targets) do
+                    zombie.burn_time = Elapsed
+                end
+            end
+        else
+            local duration = grenade.duration
+            local t = grenade.age / duration
+
+            grenade.cx = util.lerp(grenade.x, grenade.dx, t)
+            grenade.cy = util.lerp(grenade.y, grenade.dy, t)
+            grenade.scale = 0.2 + 0.8 * (1 - math.abs(2 * t - 1) ^ 3)
+
+            if grenade.age > duration then
+                table.remove(Grenades, i)
+                if grenade.id == "frag_grenade" then
+                    conditional_screen_shake(1, 2)
+                    dandelion.frag_grenade(grenade.dx, grenade.dy)
+                    local targets = get_all_in_range({ x = grenade.dx, y = grenade.dy, r = 32 }, true)
+                    if targets then
+                        for _, zombie in pairs(targets) do
+                            local dx, dy = zombie.x + ZOMBIE_W_ADJUST - grenade.dx,
+                                zombie.y + ZOMBIE_H_ADJUST - grenade.dy
+                            local h = util.vec_dist({ x = 0, y = 0 }, { x = dx, y = dy })
+                            local theta = math.asin(dy / h)
+                            local angle = dx > 0 and theta or (math.pi - theta)
+                            local distance = util.vec_dist({ x = grenade.dx, y = grenade.dy },
+                                { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST })
+                            local damage = 5 + 48 - distance
+                            local vec = util.vec_from_angle(angle, math.random() * damage / 2 + damage / 2)
+                            zombie.health -= damage
+                            apply_knockback_zombie(zombie, vec.x, vec.y)
+                        end
+                    end
+                elseif grenade.id == "molotov" then
+                    local fire = {
+                        id = "molotov_fire",
+                        x = grenade.dx,
+                        y = grenade.dy,
+                        born = Elapsed
+                    }
+                    table.insert(Grenades, fire)
+                    dandelion.molotov_break(grenade.dx, grenade.dy)
+                    if Weather == "rain" then
+                        dandelion.short_molotov_fire(grenade.dx, grenade.dy)
+                    else
+                        dandelion.molotov_fire(grenade.dx, grenade.dy)
                     end
                 end
             end
-            -- print("explode")
         end
     end
 end
@@ -1019,11 +1050,11 @@ function _update(dt)
         Player.kb = util.approach(Player.kb, 0, amount)
     end
 
-    if input.key_held(input.KEY_H) then
+    if input.key_held(input.KEY_H) and usagi.IS_DEV then
         spawn_zombie("sprinter_3", 160, 0)
     end
 
-    if input.key_pressed(input.KEY_C) then
+    if input.key_pressed(input.KEY_C) and usagi.IS_DEV then
         -- damage_player(5)
         change_money(250)
     end
@@ -1031,7 +1062,7 @@ function _update(dt)
         -- heal_player(1)
     end
 
-    if input.key_pressed(input.KEY_U) then
+    if input.key_pressed(input.KEY_U) and usagi.IS_DEV then
         Zombies = {}
         Current_Wave = {}
     end
@@ -1101,18 +1132,6 @@ function _update(dt)
                     local choice = Highlighted_Choice == 1 and Choice_1 or Choice_2
                     local discarded = Highlighted_Choice == 1 and Choice_2 or Choice_1
 
-                    if choice.class == "Turret" then
-                        table.insert(Discovered_Turrets, choice.id)
-                    end
-                    if choice.class == "Upgrade" then
-                        Discovered_Turret_Upgrades[choice.id] = true
-                    end
-                    if choice.class == "Weapon" then
-                        Discovered_Weapons[choice.id] = false
-                    end
-                    if choice.class == "Grenade" then
-                        Discovered_Grenades[choice.id] = false
-                    end
                     if Choice_Type == "mutation" then
                         -- discarded goes to back of line
                         table.insert(Potential_Mutations, discarded.id)
@@ -1127,15 +1146,27 @@ function _update(dt)
                             table.remove(Discovered_Mutations, previous)
                         end
                         if choice.next and ZOMBIES[choice.next] then
-                            table.insert(Potential_Mutations, math.random(1, math.floor(#Potential_Mutations / 2) or 1),
+                            table.insert(Potential_Mutations, math.random(1, math.floor(#Potential_Mutations) or 1),
                                 choice.next)
                         end
-                    elseif Choice_Type == "turret" then
+                    elseif Choice_Type == "unlock" then
+                        if choice.class == "Turret" then
+                            table.insert(Discovered_Turrets, choice.id)
+                        end
+                        if choice.class == "Upgrade" then
+                            Discovered_Turret_Upgrades[choice.id] = true
+                        end
+                        if choice.class == "Weapon" then
+                            Discovered_Weapons[choice.id] = false
+                        end
+                        if choice.class == "Grenade" then
+                            Discovered_Grenades[choice.id] = false
+                        end
                         -- discarded goes to back of line
                         table.insert(Potential_Unlocks, discarded.id)
                         -- next preferred upgrade is put somewhere in the front half
                         if choice.next and UNLOCKS[choice.next] then
-                            table.insert(Potential_Unlocks, math.random(1, math.floor(#Potential_Unlocks / 2) or 1),
+                            table.insert(Potential_Unlocks, math.random(1, math.floor(#Potential_Unlocks) or 1),
                                 choice.next)
                         end
                     end
@@ -1292,15 +1323,21 @@ end
 
 local function draw_zombies()
     for i, zombie in pairs(Zombies) do
+        if Elapsed - zombie.burn_time < FIRE_DURATION and math.random() > 0.9 then
+            dandelion.on_fire(zombie.x + ZOMBIE_W_ADJUST + 4, zombie.y + ZOMBIE_H_ADJUST + 4)
+            zombie.health -= 0.5
+        end
         if zombie.on_wall then
             table.insert(WallZombies, zombie)
         elseif zombie.moved then
-            local tint = (Elapsed - zombie.chill_time < CHILL_DURATION) and gfx.COLOR_BLUE or gfx.COLOR_TRUE_WHITE
-            zombie.scale = util.approach(zombie.scale, 1, (zombie.scale ^ 4) / 100)
-            gfx.sspr_ex(zombie.spr_x + zombie.variant * H_SIZE, zombie.spr_y + zombie.current_frame * H_SIZE, H_SIZE,
-                H_SIZE, zombie.x - 2 * (zombie.scale - 1), zombie.y - 2 * (zombie.scale - 1), H_SIZE * zombie.scale,
-                H_SIZE * zombie.scale,
-                zombie.flip, false, 0, tint, 1)
+            if not string.match(zombie.type, "stalker") or zombie.y > zombie.invis_cutoff then
+                local tint = (Elapsed - zombie.chill_time < CHILL_DURATION) and gfx.COLOR_BLUE or gfx.COLOR_TRUE_WHITE
+                zombie.scale = util.approach(zombie.scale, 1, (zombie.scale ^ 4) / 100)
+                gfx.sspr_ex(zombie.spr_x + zombie.variant * H_SIZE, zombie.spr_y + zombie.current_frame * H_SIZE, H_SIZE,
+                    H_SIZE, zombie.x - 2 * (zombie.scale - 1), zombie.y - 2 * (zombie.scale - 1), H_SIZE * zombie.scale,
+                    H_SIZE * zombie.scale,
+                    zombie.flip, false, 0, tint, 1)
+            end
         end
     end
 end
@@ -1530,6 +1567,14 @@ local function draw_stats(item)
             gfx.rect_fill(stat_offset + d * 4, y_offset, 2, 8, shadow_color)
             gfx.rect_fill(stat_offset + d * 4, y_offset - 1, 2, 8, desc_color)
         end
+        y_offset += 12  
+    end
+    if item.duration then
+        text_with_shadow("Duration", 16, y_offset - 4, desc_color, shadow_color)
+        for d = 1, item.duration do
+            gfx.rect_fill(stat_offset + d * 4, y_offset, 2, 8, shadow_color)
+            gfx.rect_fill(stat_offset + d * 4, y_offset - 1, 2, 8, desc_color)
+        end
     end
 end
 
@@ -1587,7 +1632,8 @@ local function draw_drawer()
     end
 
     if Drawer_Type == "turret" and Selected_Turret and Turrets[Selected_Turret] then
-        text_with_shadow("($"..(math.floor(Turrets[Selected_Turret].cost/2)) .. ") Sell Turret [G]", 128, 104, gfx.COLOR_RED, gfx.COLOR_DARK_PURPLE)
+        text_with_shadow("($" .. (math.floor(Turrets[Selected_Turret].cost / 2)) .. ") Sell Turret [G]", 128, 104,
+            gfx.COLOR_RED, gfx.COLOR_DARK_PURPLE)
     end
 
     for i, item in pairs(Drawer_Items) do
@@ -1605,7 +1651,7 @@ local function draw_drawer()
                 text_with_shadow("$" .. item.display_cost, x + 1, y + 16, color, shadow)
             elseif Drawer_Type == "weapon" then
                 local tint = ((Money >= item.cost or Discovered_Weapons[item.id]) and Weapon.id ~= item.id) and
-                gfx.COLOR_TRUE_WHITE or gfx.COLOR_DARK_GRAY
+                    gfx.COLOR_TRUE_WHITE or gfx.COLOR_DARK_GRAY
                 gfx.sspr_ex(item.spr_x, item.spr_y, 16, 16, x - 1, y - 2, 32, 32, false, false, 0, tint, 1)
                 local color = ((Money >= item.cost or Discovered_Weapons[item.id]) and Weapon.id ~= item.id) and
                     gfx.COLOR_YELLOW or gfx.COLOR_LIGHT_GRAY
@@ -1619,7 +1665,7 @@ local function draw_drawer()
             elseif Drawer_Type == "grenade" then
                 -- gfx.sspr_ex(496, 496, 16, 16, x, y, 28, 28, false, false, 0, gfx.COLOR_DARK_GRAY, 0.5)
                 local tint = (Money >= item.cost and #Grenade_Inventory < Grenade_Slots) and gfx.COLOR_TRUE_WHITE or
-                gfx.COLOR_DARK_GRAY
+                    gfx.COLOR_DARK_GRAY
                 gfx.sspr_ex(item.spr_x, item.spr_y, 14, 14, x + 3, y + 3, 28, 28, false, false, 0, tint, 1)
 
                 local color = (Money >= item.cost and #Grenade_Inventory < Grenade_Slots) and
@@ -1692,7 +1738,13 @@ local function draw_choices()
             gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 16, 16, 56, 52, 48, 48, false, false, 0,
                 gfx.COLOR_TRUE_WHITE, 1)
         elseif Choice_Type == "unlock" then
-            gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 28, 28, 52, 52, 56, 56, false, false, 0, gfx.COLOR_TRUE_WHITE, 1)
+            if Choice_1.class == "Grenade" then
+                gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 14, 14, 52, 52, 56, 56, false, false, 0, gfx
+                    .COLOR_TRUE_WHITE, 1)
+            else
+                gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 14, 14, 52, 52, 56, 56, false, false, 0, gfx
+                    .COLOR_TRUE_WHITE, 1)
+            end
         end
 
         if elapsed > 3.25 and Choice_Progression == 3 then
@@ -1718,8 +1770,13 @@ local function draw_choices()
             gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 16, 16, usagi.GAME_W - w + 40, 52, 48, 48, false, false, 0,
                 gfx.COLOR_TRUE_WHITE, 1)
         elseif Choice_Type == "unlock" then
-            gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 28, 28, usagi.GAME_W - w + 36, 52, 56, 56, false, false, 0,
-                gfx.COLOR_TRUE_WHITE, 1)
+            if Choice_1.class == "Grenade" then
+                gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 14, 14, usagi.GAME_W - w + 36, 52, 56, 56, false, false, 0,
+                    gfx.COLOR_TRUE_WHITE, 1)
+            else
+                gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 28, 28, usagi.GAME_W - w + 36, 52, 56, 56, false, false, 0,
+                    gfx.COLOR_TRUE_WHITE, 1)
+            end
         end
         if elapsed > 4 and Choice_Progression == 4 then
             Choice_Progression = 5
@@ -1743,9 +1800,12 @@ end
 
 local function draw_grenades()
     for _, grenade in pairs(Grenades) do
-        local rotation = (grenade.random * 8 - 4) * grenade.age * math.pi
-        gfx.sspr_ex(grenade.spr_x, grenade.spr_y, 16, 16, grenade.cx - 8 * grenade.scale, grenade.cy - 8 * grenade.scale,
-            16 * grenade.scale, 16 * grenade.scale, false, false, rotation, gfx.COLOR_TRUE_WHITE, 1)
+        if grenade.id ~= "molotov_fire" then
+            local rotation = (grenade.random * 8 - 4) * grenade.age * math.pi
+            gfx.sspr_ex(grenade.spr_x, grenade.spr_y, 16, 16, grenade.cx - 8 * grenade.scale,
+            grenade.cy - 8 * grenade.scale,
+                16 * grenade.scale, 16 * grenade.scale, false, false, rotation, gfx.COLOR_TRUE_WHITE, 1)
+        end
     end
 end
 
@@ -1775,7 +1835,7 @@ function _draw(dt)
     -- night time tint
     local max = Weather == "rain" and 0.3 or 0
     if Is_Night then
-        local alpha = math.min(max + (Elapsed - Transition_Started), 0.6 + max / 2)
+        local alpha = math.min(max + (Elapsed - Transition_Started), 0.6)
         gfx.sspr_ex(496, 496, 16, 16, 0, 0, 320, 180, false, false, 0, gfx.COLOR_DARK_BLUE, alpha)
     else
         local alpha = math.max(0.6 - (Elapsed - Transition_Started), max)
@@ -1794,7 +1854,7 @@ function _draw(dt)
     end
 
     if not Is_Night and Player.x < 10 and not Choice_1 then
-        text_with_shadow("[SPACE] Start Night", 0, 104, gfx.COLOR_RED, gfx.COLOR_DARK_PURPLE)
+        text_with_shadow("[SPACE] Start Night", 2, 104, gfx.COLOR_RED, gfx.COLOR_DARK_PURPLE)
     end
 
     draw_crosshair()

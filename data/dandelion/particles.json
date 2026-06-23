@@ -260,6 +260,18 @@
         }
     },
     {
+        "name": "molotov_glass",
+        "duration": "self.random_3 * 0.5 + 0.5",
+        "type": "triangle",
+        "color": "gfx.COLOR_DARK_GREEN",
+        "dx": "self.age * (self.random_1 * -64 + 32)",
+        "dy": "2 * ((8 * self.age - 2) ^ 2) + (self.random_2 * 16 - 8) - 8",
+        "config": {
+            "size": "(self.random_2 * 1 + 1) * (1 - self.age / self.duration)",
+            "rotation": "self.random_3 + self.age * (self.random_4 * 2 - 4)"
+        }
+    },
+    {
         "name": "blood_chunk_circle_slow",
         "duration": "3 * (self.random_3 * 0.5 + 0.5)",
         "type": "circle",
@@ -351,6 +363,30 @@
         "type": "circle",
         "config": {
             "radius": "(self.random_3 * 4 + 2) * (1 - self.age / self.duration)"
+        }
+    },
+    {
+        "name": "flame",
+        "duration": 0.5,
+        "emissive": true,
+        "color": "self.age > 0.25 and gfx.COLOR_RED or self.age > 0.1 and gfx.COLOR_ORANGE or gfx.COLOR_YELLOW",
+        "dx": "self.age * -1 * (self.random_1 * 4 + 2)",
+        "dy": "self.age * -10",
+        "type": "triangle",
+        "config": {
+            "size": "(self.random_2 * 1 + 2) * (1 - self.age / self.duration + 0.5)",
+            "rotation": "self.age * 4 - (self.random_1 * 4)"
+        }
+    },
+    {
+        "name": "fire_smoke",
+        "duration": 1.5,
+        "color": "self.random_1 > 0.5 and gfx.COLOR_DARK_GRAY or gfx.COLOR_BLACK",
+        "dx": "self.age * -1 * (self.random_1 * 4 + 2)",
+        "dy": "self.age * -10",
+        "type": "circle",
+        "config": {
+            "radius": "(self.random_1 + 2) * (1 - self.age / self.duration)"
         }
     }
 ]
