@@ -326,6 +326,38 @@
         ]
     },
     {
+        "name": "fire_turret_blast",
+        "duration": 0,
+        "particles": [
+            {
+                "name": "fire_blast",
+                "count": 1,
+                "frequency": 1,
+                "shape": "circle",
+                "config": {
+                    "radius": 1,
+                    "motion": -96,
+                    "distribution": "even",
+                    "outline": true,
+                    "rotation": "self.rotation+1 or 0"
+                }
+            },
+            {
+                "name": "flamethrower_smoke",
+                "count": 1,
+                "frequency": 1,
+                "shape": "circle",
+                "config": {
+                    "radius": 1,
+                    "motion": -96,
+                    "distribution": "even",
+                    "outline": true,
+                    "rotation": "self.rotation+1 or 0"
+                }
+            }
+        ]
+    },
+    {
         "name": "molotov_break",
         "duration": 0,
         "particles": [

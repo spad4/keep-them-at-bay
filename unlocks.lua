@@ -85,7 +85,7 @@ return {
     ["sniper_turret_2"] = {
         id = "sniper_turret_2",
         name = "VIPER Mk. II",
-        class = "Turret",
+        class = "Upgrade",
         description = "Increased damage.",
         spr_x = 352,
         spr_y = 96,
@@ -94,7 +94,7 @@ return {
     ["sniper_turret_3"] = {
         id = "sniper_turret_3",
         name = "VIPER Mk. III",
-        class = "Turret",
+        class = "Upgrade",
         spr_x = 384,
         spr_y = 96,
         description = "Increased sensor range."
@@ -113,7 +113,7 @@ return {
     ["ice_turret_2"] = {
         id = "ice_turret_2",
         name = "URSA Mk. II",
-        class = "Turret",
+        class = "Upgrade",
         description = "Increased AOE.",
         spr_x = 448,
         spr_y = 96,
@@ -124,10 +124,36 @@ return {
         name = "URSA Mk. III",
         spr_x = 480,
         spr_y = 96,
-        class = "Turret",
+        class = "Upgrade",
         description = "Increased range."
     },
 
+    ["fire_turret_1"] = {
+        id = "fire_turret_1",
+        name = "KOMODO Mk. I",
+        class = "Turret",
+        description = "Powerful flamethrower.",
+        spr_x = 320,
+        spr_y = 128,
+        next = "fire_turret_2"
+    },
+    ["fire_turret_2"] = {
+        id = "fire_turret_2",
+        name = "KOMODO Mk. II",
+        class = "Upgrade",
+        description = "Increased AOE.",
+        spr_x = 352,
+        spr_y = 128,
+        next = "fire_turret_3"
+    },
+    ["fire_turret_3"] = {
+        id = "fire_turret_3",
+        name = "KOMODO Mk. III",
+        spr_x = 384,
+        spr_y = 128,
+        class = "Upgrade",
+        description = "Increased range."
+    },
     -- ["sawblade_turret"] = {
     --     id = "sawblade_turret",
     --     name = "SHARK Mk. I",

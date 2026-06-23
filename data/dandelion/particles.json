@@ -14,6 +14,20 @@
         }
     },
     {
+        "name": "game_won",
+        "emissive": true,
+        "duration": 9999,
+        "type": "text",
+        "color": "gfx.COLOR_GREEN",
+        "dx": 0,
+        "dy": 0,
+        "config": {
+            "text": "'CONGRATULATIONS.'",
+            "shadow": "gfx.COLOR_DARK_BLUE",
+            "scale": 3
+        }
+    },
+    {
         "name": "stats_text",
         "emissive": true,
         "duration": 9999,
@@ -366,6 +380,19 @@
         }
     },
     {
+        "name": "fire_blast",
+        "duration": "self.random_2 * 0.75 + 0.25",
+        "emissive": true,
+        "color": "self.age > 0.25 and gfx.COLOR_RED or self.age > 0.1 and gfx.COLOR_ORANGE or gfx.COLOR_YELLOW",
+        "dx": "((self.age) ^ 2) * (self.random_4 * 32 - 16)",
+        "dy": "((self.age) ^ 2) * (self.random_4 * 32 - 16)",
+        "type": "triangle",
+        "config": {
+            "size": "(self.random_2 * 1 + 2) * (1 - self.age / self.duration + 0.5)",
+            "rotation": "self.age * 4 - (self.random_1 * 4)"
+        }
+    },
+    {
         "name": "flame",
         "duration": 0.5,
         "emissive": true,
@@ -381,6 +408,17 @@
     {
         "name": "fire_smoke",
         "duration": 1.5,
+        "color": "self.random_1 > 0.5 and gfx.COLOR_DARK_GRAY or gfx.COLOR_BLACK",
+        "dx": "self.age * -1 * (self.random_1 * 4 + 2)",
+        "dy": "self.age * -10",
+        "type": "circle",
+        "config": {
+            "radius": "(self.random_1 + 2) * (1 - self.age / self.duration)"
+        }
+    },
+    {
+        "name": "flamethrower_smoke",
+        "duration": 0.75,
         "color": "self.random_1 > 0.5 and gfx.COLOR_DARK_GRAY or gfx.COLOR_BLACK",
         "dx": "self.age * -1 * (self.random_1 * 4 + 2)",
         "dy": "self.age * -10",

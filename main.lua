@@ -51,6 +51,15 @@ BULLETS = {
         spr_h = 8,
         particle = "small_smoke",
         thickness = 2
+    },
+    ["fire"] = {
+        name = "fire",
+        spr_x = 323,
+        spr_y = 177,
+        spr_w = 2,
+        spr_h = 8,
+        particle = "small_smoke",
+        thickness = 2
     }
 }
 
@@ -100,9 +109,8 @@ local function reset()
     Wall_Flipped = {}
     Turrets = {}
     Discovered_Turrets = { "rifle_turret_1" }
-    Discovered_Turret_Upgrades = {
-    }
-    -- Discovered_Turrets = { "rifle_turret_1","shotgun_turret_1","sniper_turret_1","ice_turret_1"}
+    Discovered_Turret_Upgrades = {}
+    -- Discovered_Turrets = { "rifle_turret_1", "shotgun_turret_1", "sniper_turret_1", "ice_turret_1" }
     -- Discovered_Turret_Upgrades = {
     --     ["rifle_turret_2"] = true,
     --     ["rifle_turret_3"] = true,
@@ -111,7 +119,9 @@ local function reset()
     --     ["sniper_turret_2"] = true,
     --     ["sniper_turret_3"] = true,
     --     ["ice_turret_2"] = true,
-    --     ["ice_turret_3"] = true
+    --     ["ice_turret_3"] = true,
+    --     ["fire_turret_2"] = true,
+    --     ["fire_turret_3"] = true
     -- }
     Highlighted_Turret = nil
     Selected_Turret = nil
@@ -121,6 +131,7 @@ local function reset()
     Is_Night = false
     Weather = "Clear"
     Game_Over = nil
+    Game_Won = nil
     Game_Over_Phase = 0
     Zombies_Killed = 0
     Money_Made = 0
@@ -133,20 +144,21 @@ local function reset()
     Highlighted_Drawer_Item = nil
     Highlighted_Tab = nil
     Potential_Unlocks = {
-        "molotov", "shotgun_weapon", "sniper_weapon", "burst_weapon", "shotgun_turret_1",
+        "shotgun_weapon", "molotov", "sniper_weapon", "burst_weapon", "shotgun_turret_1",
         "sniper_turret_1", "ice_turret_1", "rifle_turret_2",
     }
     Potential_Mutations = {
         "sprinter_1", "shambler_2", "boomer_1", "conjoined_1", "stalker_1"
     }
     Potential_Mutations = shuffle(Potential_Mutations)
-    -- Potential_Unlocks = shuffle(Potential_Unlocks)
+    Potential_Unlocks = shuffle(Potential_Unlocks)
     Next_Is_Unlock = true
     Choice_1 = nil
     Choice_2 = nil
     Choice_Type = nil
     Choice_Progression = 0
     Highlighted_Choice = 0
+    Komodo_Added = false
     Discovered_Mutations = { "shambler_1" }
     Discovered_Weapons = {
         ["rifle_weapon"] = true
@@ -169,7 +181,7 @@ local function reset()
 end
 
 function _init()
-    Elapsed = 0
+    Elapsed = 5
     Attempts = 1
     reset()
     Screen_Shake = true
@@ -375,6 +387,13 @@ local function shoot()
                 { ["config"] = { length = 1000, rotation = Mouse_Angle + spread } })
         end
         dandelion.small_smoke(start_x, start_y)
+        if Weapon.id == "rifle_weapon" then
+            sfx.play_ex("medium_gunshot", 0.5, math.random() * 0.1 + 0.95, 0)
+        elseif Weapon.id == "shotgun_weapon" or Weapon.id == "sniper_weapon" then
+            sfx.play_ex("heavy_gunshot", 0.5, math.random() * 0.1 + 0.95, 0)
+        elseif Weapon.id == "burst_weapon" then
+            sfx.play_ex("light_gunshot", 0.5, math.random() * 0.1 + 0.95, 0)
+        end
     end
 
     dandelion[BULLETS[Weapon.bullet].particle](adjusted_x, adjusted_y, { flip = Player.flip and 1 or -1 })
@@ -412,6 +431,44 @@ local function blocked_by_wall(x, y, w, h)
 
     return nil
 end
+
+local function game_won_sequence()
+    local over_for = Elapsed - Game_Won
+
+    if over_for > 2 and Game_Over_Phase == 0 then
+        conditional_screen_shake(0.5, 1)
+        dandelion.game_won(32, 16)
+        Game_Over_Phase = 1
+    end
+
+    if over_for > 2.5 and Game_Over_Phase == 1 then
+        conditional_screen_shake(0.5, 0.5)
+        dandelion.stats_text(32, 48, { print = "The hordes have subsided." })
+        Game_Over_Phase = 2
+    end
+    if over_for > 3.5 and Game_Over_Phase == 2 then
+        conditional_screen_shake(0.5, 0.5)
+        dandelion.stats_text(32, 60, { print = "Zombies Killed: " .. Zombies_Killed })
+        Game_Over_Phase = 3
+    end
+    if over_for > 4 and Game_Over_Phase == 3 then
+        conditional_screen_shake(0.5, 0.5)
+        dandelion.stats_text(32, 72, { print = "Money Made: " .. Money_Made })
+        Game_Over_Phase = 4
+    end
+
+    if over_for > 5 and Game_Over_Phase == 4 then
+        conditional_screen_shake(0.5, 0.75)
+        dandelion.stats_text(32, 96, { print = "Press [SPACE] to restart." })
+        Game_Over_Phase = 5
+    end
+
+    if input.key_pressed(input.KEY_SPACE) then
+        Attempts += 1
+        reset()
+    end
+end
+
 
 local function game_over_sequence()
     local over_for = Elapsed - Game_Over
@@ -497,7 +554,7 @@ local function get_nearest_in_range(range)
     local closest_distance = 9999
     local closest_index = 0
     for _, zombie in pairs(Zombies) do
-        if zombie.y <= WALL_START - 40 and zombie.y > -10 and not zombie.on_wall and (not string.match(zombie.type, "stalker") or zombie.y > zombie.invis_cutoff) then -- zombies past the wall cannot be shot
+        if zombie.y <= WALL_START - 40 and zombie.y > -10 and not zombie.on_wall and not string.match(zombie.type, "stalker") then -- zombies past the wall cannot be shot
             local rect = { x = zombie.x + ZOMBIE_W_ADJUST, y = zombie.y + ZOMBIE_H_ADJUST, w = zombie.w, h = zombie.h }
             if util.circ_rect_overlap(range, rect) then
                 table.insert(can_hit, zombie)
@@ -754,50 +811,59 @@ local function next_day()
     Is_Night = false
     dandelion.ClearEmitters()
     Weather = "clear"
-    if math.random() > 0.75 then
-        Weather = "rain"
-        dandelion.rain_emitter(usagi.GAME_W / 2, usagi.GAME_H / 2)
-    end
-    Transition_Started = Elapsed
-
-    Player.health = Player_Health
-
-    if (Day - 3) % 4 == 0 then
-        local first = math.random(1, 4)
-        local second = first
-        while second == first do
-            second = math.random(1, 4)
-        end
-
-        local i = 0
-        for k, v in pairs(UPGRADES) do
-            i += 1
-            if i == first then
-                Choice_1 = v
-            end
-            if i == second then
-                Choice_2 = v
-            end
-        end
-
-        Choice_Type = "upgrade"
+    if Day == 31 then
+        Game_Won = Elapsed
     else
-        if Next_Is_Unlock then
-            Choice_1 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
-            Choice_2 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
-            Choice_Type = "unlock"
-        else
-            local f = table.remove(Potential_Mutations, 1)
-            local s = table.remove(Potential_Mutations, 1)
-            Choice_1 = ZOMBIES[f]
-            Choice_1.id = f
-            Choice_2 = ZOMBIES[s]
-            Choice_2.id = s
-            Choice_Type = "mutation"
+        if math.random() > 0.75 then
+            Weather = "rain"
+            dandelion.rain_emitter(usagi.GAME_W / 2, usagi.GAME_H / 2)
         end
-        Next_Is_Unlock = not Next_Is_Unlock
+        Transition_Started = Elapsed
+
+        Player.health = Player_Health
+
+        if Day > 15 and not Komodo_Added then
+            Komodo_Added = true
+            table.insert(Potential_Unlocks, "fire_turret_1")
+        end
+
+        if (Day - 3) % 4 == 0 then
+            local first = math.random(1, 4)
+            local second = first
+            while second == first do
+                second = math.random(1, 4)
+            end
+
+            local i = 0
+            for k, v in pairs(UPGRADES) do
+                i += 1
+                if i == first then
+                    Choice_1 = v
+                end
+                if i == second then
+                    Choice_2 = v
+                end
+            end
+
+            Choice_Type = "upgrade"
+        else
+            if Next_Is_Unlock then
+                Choice_1 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
+                Choice_2 = UNLOCKS[table.remove(Potential_Unlocks, 1)]
+                Choice_Type = "unlock"
+            else
+                local f = table.remove(Potential_Mutations, 1)
+                local s = table.remove(Potential_Mutations, 1)
+                Choice_1 = ZOMBIES[f]
+                Choice_1.id = f
+                Choice_2 = ZOMBIES[s]
+                Choice_2.id = s
+                Choice_Type = "mutation"
+            end
+            Next_Is_Unlock = not Next_Is_Unlock
+        end
+        Day += 1
     end
-    Day += 1
 end
 
 local function do_waves()
@@ -900,6 +966,11 @@ local function do_turrets()
             local end_x, end_y = start_x + spread_vec.x, start_y + spread_vec.y
 
             if turret.bullet == "rifle" or turret.bullet == "shell" or turret.bullet == "sniper" then
+                if turret.bullet == "rifle" then
+                    sfx.play_ex("medium_gunshot", 0.3, math.random() * 0.1 + 0.95, 0)
+                else
+                    sfx.play_ex("heavy_gunshot", 0.3, math.random() * 0.1 + 0.95, 0)
+                end
                 local zombie, distance = hit_zombie(start_x, start_y, end_x, end_y)
                 if zombie then
                     zombie.health -= turret.damage
@@ -936,6 +1007,19 @@ local function do_turrets()
                     t.chill_time = Elapsed
                 end
                 dandelion.ice_turret_blast(start_x, start_y, { rotation = (angle + spread) / math.pi })
+            elseif turret.bullet == "fire" then
+                local targets = get_all_in_range({
+                    x = z.x + ZOMBIE_W_ADJUST,
+                    y = z.y + ZOMBIE_H_ADJUST,
+                    r = turret
+                        .radius
+                })
+
+                for j, t in pairs(targets) do
+                    t.burn_time = Elapsed
+                    t.health -= 0.15
+                end
+                dandelion.fire_turret_blast(start_x, start_y, { rotation = (angle + spread) / math.pi })
             end
         end
 
@@ -1015,6 +1099,10 @@ function _update(dt)
     Elapsed += dt
     if Game_Over then
         game_over_sequence()
+        return
+    end
+    if Game_Won then
+        game_won_sequence()
         return
     end
 
@@ -1129,6 +1217,7 @@ function _update(dt)
 
             if input.mouse_pressed(input.MOUSE_LEFT) then
                 if Highlighted_Choice and Choice_Progression > 2 then
+                    sfx.play("buy")
                     local choice = Highlighted_Choice == 1 and Choice_1 or Choice_2
                     local discarded = Highlighted_Choice == 1 and Choice_2 or Choice_1
 
@@ -1249,8 +1338,10 @@ function _update(dt)
                     local item = Drawer_Items[Highlighted_Drawer_Item]
                     if Drawer_Type == "turret" then
                         if item.cost > Money then
+                            sfx.play("deny")
                             conditional_screen_shake(0.25, 0.25)
                         else
+                            sfx.play("buy")
                             change_money(item.cost * -1)
                             Turrets[Selected_Turret] = {}
                             Turrets[Selected_Turret].cooldown = 0
@@ -1264,8 +1355,10 @@ function _update(dt)
                         end
                     elseif Drawer_Type == "weapon" then
                         if item.id == Weapon.id or (item.cost > Money and not Discovered_Weapons[item.id]) then
+                            sfx.play("deny")
                             conditional_screen_shake(0.25, 0.25)
                         else
+                            sfx.play("buy")
                             if not Discovered_Weapons[item.id] then
                                 change_money(item.cost * -1)
                             end
@@ -1275,8 +1368,10 @@ function _update(dt)
                         end
                     elseif Drawer_Type == "grenade" then
                         if #Grenade_Inventory >= Grenade_Slots or item.cost > Money then
+                            sfx.play("deny")
                             conditional_screen_shake(0.25, 0.25)
                         else
+                            sfx.play("buy")
                             change_money(item.cost * -1)
                             table.insert(Grenade_Inventory, item)
                         end
@@ -1567,7 +1662,7 @@ local function draw_stats(item)
             gfx.rect_fill(stat_offset + d * 4, y_offset, 2, 8, shadow_color)
             gfx.rect_fill(stat_offset + d * 4, y_offset - 1, 2, 8, desc_color)
         end
-        y_offset += 12  
+        y_offset += 12
     end
     if item.duration then
         text_with_shadow("Duration", 16, y_offset - 4, desc_color, shadow_color)
@@ -1742,7 +1837,7 @@ local function draw_choices()
                 gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 14, 14, 52, 52, 56, 56, false, false, 0, gfx
                     .COLOR_TRUE_WHITE, 1)
             else
-                gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 14, 14, 52, 52, 56, 56, false, false, 0, gfx
+                gfx.sspr_ex(Choice_1.spr_x, Choice_1.spr_y, 28, 28, 52, 52, 56, 56, false, false, 0, gfx
                     .COLOR_TRUE_WHITE, 1)
             end
         end
@@ -1770,7 +1865,7 @@ local function draw_choices()
             gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 16, 16, usagi.GAME_W - w + 40, 52, 48, 48, false, false, 0,
                 gfx.COLOR_TRUE_WHITE, 1)
         elseif Choice_Type == "unlock" then
-            if Choice_1.class == "Grenade" then
+            if Choice_2.class == "Grenade" then
                 gfx.sspr_ex(Choice_2.spr_x, Choice_2.spr_y, 14, 14, usagi.GAME_W - w + 36, 52, 56, 56, false, false, 0,
                     gfx.COLOR_TRUE_WHITE, 1)
             else
@@ -1803,7 +1898,7 @@ local function draw_grenades()
         if grenade.id ~= "molotov_fire" then
             local rotation = (grenade.random * 8 - 4) * grenade.age * math.pi
             gfx.sspr_ex(grenade.spr_x, grenade.spr_y, 16, 16, grenade.cx - 8 * grenade.scale,
-            grenade.cy - 8 * grenade.scale,
+                grenade.cy - 8 * grenade.scale,
                 16 * grenade.scale, 16 * grenade.scale, false, false, rotation, gfx.COLOR_TRUE_WHITE, 1)
         end
     end
@@ -1843,7 +1938,9 @@ function _draw(dt)
     end
 
     draw_grenade_inventory()
-    draw_hud()
+    if not Game_Over and not Game_Won then
+        draw_hud()
+    end
     dandelion.DrawEmissive()
     if Drawer or Drawer_Height > 0 then
         draw_drawer()
