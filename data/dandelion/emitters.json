@@ -54,6 +54,7 @@
     {
         "name": "construction",
         "duration": 0,
+        "dy": -8,
         "particles": [
             {
                 "name": "construction_smoke",

@@ -24,7 +24,7 @@ local function compute_particle_expression(particle, expression)
         return expression
     end
 
-    particle.age = usagi.elapsed - particle.born
+    particle.age = Elapsed - particle.born
     local emit = particle.emitter
 
     if chunk_cache[expression] then
@@ -48,7 +48,7 @@ local function compute_emitter_expression(emitter, expression)
         return expression
     end
 
-    emitter.age = usagi.elapsed - emitter.born
+    emitter.age = Elapsed - emitter.born
 
     if chunk_cache[expression] then
         return chunk_cache[expression](emitter)
@@ -77,7 +77,7 @@ for _, particle in pairs(load_particles) do
         local new_particle = {
             x = x,
             y = y,
-            born = usagi.elapsed
+            born = Elapsed
         }
 
         -- assign all properties from json
@@ -130,7 +130,7 @@ for _, emitter in pairs(load_emitters) do
         local new_emitter = {
             x = x,
             y = y,
-            born = usagi.elapsed
+            born = Elapsed
         }
 
         -- assign all properties from json
@@ -445,7 +445,7 @@ local function emit_particles(emitter)
     local particles = emitter.particles
     if not particles then return end
 
-    local age = usagi.elapsed - emitter.born
+    local age = Elapsed - emitter.born
     local dx = compute_emitter_expression(emitter, emitter.dx or 0)
     local dy = compute_emitter_expression(emitter, emitter.dy or 0)
 
@@ -491,7 +491,7 @@ function dandelion.Draw()
     -- these hopefully don't need optimized removal, but it can be added later if necessary
     for i = #emitter_cache, 1, -1 do
         local emitter = emitter_cache[i]
-        local age = usagi.elapsed - emitter.born
+        local age = Elapsed - emitter.born
 
         if age > emitter.duration then
             table.remove(emitter_cache, i)
@@ -520,7 +520,7 @@ function dandelion.Draw()
             culling helps even more because then the size of the cache will never exceed an amount that
             would cause table.remove to majorly impact performance
         ]] --
-        if particle.dead or usagi.elapsed - particle.born > particle.duration then
+        if particle.dead or Elapsed - particle.born > particle.duration then
             if remove_budget > 0 then
                 if not particle.dead then alive_particles = alive_particles - 1 end
                 table.remove(particle_cache, i)
@@ -565,7 +565,7 @@ function dandelion.DrawEmissive()
             culling helps even more because then the size of the cache will never exceed an amount that
             would cause table.remove to majorly impact performance
         ]] --
-        if particle.dead or usagi.elapsed - particle.born > particle.duration then
+        if particle.dead or Elapsed - particle.born > particle.duration then
             if remove_budget > 0 then
                 if not particle.dead then alive_particles = alive_particles - 1 end
                 table.remove(particle_cache, i)
